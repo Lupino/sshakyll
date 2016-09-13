@@ -1,2 +1,6 @@
+import SSHakyll
+
 main :: IO ()
-main = putStrLn "Test suite not yet implemented"
+main = do
+  trees <- getFileTreeList "."
+  print $ encodeTreeList trees
