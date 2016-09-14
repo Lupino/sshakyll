@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <title>Editor</title>
+
+  <script type="text/javascript" src="promise-0.1.1.min.js"></script>
+  <script type="text/javascript" src="jquery-2.1.0.min.js"></script>
+  <script type="text/javascript" src="jstree/jstree.min.js"></script>
+  <link rel="stylesheet" href="jstree/themes/default/style.min.css">
+
+  <script src="markdown-it.js"></script>
+  <script src="markdown-it-footnote.js"></script>
+  <script src="highlight.pack.js"></script>
+  <script src="codemirror/lib/codemirror.js"></script>
+  <script src="codemirror/overlay.js"></script>
+  <script src="codemirror/xml/xml.js"></script>
+  <script src="codemirror/markdown/markdown.js"></script>
+  <script src="codemirror/gfm/gfm.js"></script>
+  <script src="codemirror/javascript/javascript.js"></script>
+  <script src="codemirror/css/css.js"></script>
+  <script src="codemirror/htmlmixed/htmlmixed.js"></script>
+  <script src="codemirror/lib/util/continuelist.js"></script>
+  <script src="rawinflate.js"></script>
+  <script src="rawdeflate.js"></script>
+  <link rel="stylesheet" href="base16-light.css">
+  <link rel="stylesheet" href="codemirror/lib/codemirror.css">
+  <link rel="stylesheet" href="default.css">
+
+  <style type="text/css" media="screen">
+    body {
+      overflow: hidden;
+      margin: 0;
+    }
+
+    .CodeMirror pre{
+      line-height: 16px;
+    }
+
+    #editor {
+      position: fixed;
+      top: 0;
+      left: 250px;
+      right: 0;
+      bottom: 0;
+      overflow: hidden;
+    }
+
+    #in{
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 50%;
+      height: auto;
+      overflow: auto;
+      font-size: 12px;
+      box-shadow: -10px 2px 6px 10px rgba(0,0,0,0.4);
+    }
+
+    .CodeMirror {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: auto;
+      height: auto;
+    }
+
+    .CodeMirror-scroll {
+      padding: 30px;
+      box-sizing: border-box;
+    }
+
+    #out{
+      position: absolute;
+      top: 0;
+      right: 0;
+      left: 50%;
+      bottom: 0;
+      overflow: auto;
+      padding: 10px;
+      padding-left: 20px;
+      color: #444;
+      font-family:Georgia, Palatino, 'Palatino Linotype', Times, 'Times New Roman', serif;
+      font-size: 16px;
+      line-height: 1.5em
+    }
+
+    #menu {
+      display: none;
+      position: fixed;
+      background-color: #111;
+      border-radius: 5px;
+      top: 50%;
+      left: 50%;
+      width: 250px;
+      height: 150px;
+      margin-top: -75px;
+      margin-left: -125px;
+      z-index: 99;
+      text-align: center;
+      color: white;
+    }
+
+    #menu > span {
+      display: block;
+      font-size: 1.5em;
+      line-height: 1.3;
+      margin-top: 0.25em;
+    }
+
+    #menu > div {
+      display: inline-block;
+      width: 100px;
+      text-align: center;
+      vertical-align: top;
+      cursor: pointer;
+      opacity: 0.7;
+    }
+
+    #menu > div:hover {
+      opacity: 1;
+    }
+
+    #menu svg {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto;
+      display: block;
+    }
+    #menu path {
+      fill: #fff;
+    }
+
+    #close-menu {
+      position: absolute;
+      top: 5px;
+      right: 9px;
+      color: white;
+      cursor: pointer;
+    }
+
+    .emoji {
+      width: 1em;
+      height: 1em;
+      vertical-align: baseline;
+    }
+
+    @media screen and (max-width: 1024px) {
+      #in {
+        display: none;
+      }
+      #out {
+        left: 0;
+        padding-left: 10px;
+      }
+    }
+
+    .cm-header-1 { font-size: 2em; }
+    .cm-header-2 { font-size: 1.75em; }
+    .cm-header-3 { font-size: 1.5em; }
+    .cm-header-4 { font-size: 1.3em; }
+    .cm-header-5 { font-size: 1.2em; }
+    .cm-header-6 { font-size: 1.15em; }
+
+    .cm-quote { color: #90a959; font-style: italic; }
+
+    .view #in {
+      display: none;
+    }
+    .view #out {
+      left: 0;
+      padding-left: 10px;
+    }
+
+    a{ color: #0645ad; text-decoration:none;}
+    a:visited{ color: #0b0080; }
+    a:hover{ color: #06e; }
+    a:active{ color:#faa700; }
+    a:focus{ outline: thin dotted; }
+    a:hover, a:active{ outline: 0; }
+
+    p{margin:1em 0;}
+
+    img{max-width:100%;}
+
+    h1,h2,h3,h4,h5,h6{font-weight:normal;color:#111;line-height:1em;}
+    h4,h5,h6{ font-weight: bold; }
+    h1{ font-size:2.5em; }
+    h2{ font-size:2em; border-bottom:1px solid silver; padding-bottom: 5px; }
+    h3{ font-size:1.5em; }
+    h4{ font-size:1.2em; }
+    h5{ font-size:1em; }
+    h6{ font-size:0.9em; }
+
+    blockquote{color:#666666;margin:0;padding-left: 3em;border-left: 0.5em #EEE solid;}
+    hr { display: block; height: 2px; border: 0; border-top: 1px solid #aaa;border-bottom: 1px solid #eee; margin: 1em 0; padding: 0; }
+
+    pre, code{
+      color: #000;
+      font-family:Consolas, "Liberation Mono", Menlo, Courier, monospace;
+      font-size: 0.94em; /* 0.94 = 0.88 + (1.00 - 0.88) / 2 */
+      border-radius:3px;
+      background-color: #F8F8F8;
+      border: 1px solid #CCC;
+    }
+    pre { white-space: pre; white-space: pre-wrap; word-wrap: break-word; padding: 5px;}
+    pre code { border: 0px !important; background: transparent !important; line-height: 1.3em; }
+    code { padding: 0 3px 0 3px; }
+    sub, sup { font-size: 75%; line-height: 0; position: relative; vertical-align: baseline; }
+    sup { top: -0.5em; }
+    sub { bottom: -0.25em; }
+    ul, ol { margin: 1em 0; padding: 0 0 0 2em; }
+    li p:last-child { margin:0 }
+    dd { margin: 0 0 0 2em; }
+    img { border: 0; -ms-interpolation-mode: bicubic; vertical-align: middle; }
+    table { border-collapse: collapse; border-spacing: 0; }
+    td, th { vertical-align: top; padding: 4px 10px; border: 1px solid #bbb; }
+    tr:nth-child(even) td, tr:nth-child(even) th { background: #eee; }
+
+    #sidebar {
+      margin: 0;
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 249px;
+      border-right: 1px solid #888;
+    }
+
+    #status {
+      height: 99px;
+    }
+
+    #status button {
+      height: 20px;
+      font-size: 14px;
+      line-height: 14px;
+      padding: 2px 8px;
+      border: none;
+      border-radius: 3px;
+      background-color: #aaa;
+      margin: 2px 0;
+    }
+    #status button:disabled {
+      color: #666;
+    }
+
+    #status button:hover {
+      background-color: white;
+      cursor: pointer;
+    }
+    #status button:hover:disabled {
+      background-color: #aaa;
+      cursor: auto;
+    }
+
+    #tree {
+      position: fixed;
+      overflow-x: hidden;
+      overflow-y: auto;
+      top: 100px;
+      bottom: 0;
+      left: 0;
+      width: 249px;
+    }
+
+    #status {
+      background-color: #ebebeb;
+      text-align: center;
+      white-space: nowrap;
+      border-bottom: 1px solid #888;
+    }
+
+    #save-error {
+      color: red;
+    }
+
+    #howto {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: none;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 100;
+    }
+
+    #howto>div {
+      position: fixed;
+      top: 100px;
+      left: 100px;
+      right: 100px;
+      background-color: white;
+      padding: 50px;
+      border: 1px solid black;
+      font-family: sans-serif;
+    }
+
+    #howto.shown {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div id="status">
+    <button id="publish" onclick="publish()">Publish</button>
+    <button id="new" onclick="newDoc()">New</button>
+    <button id="delete" onclick="deleteDoc()">Delete</button>
+    <button id="save" onclick="saveCurrent()" disabled>Saved</button><br>
+    <button id="upload" onclick="uploadFile()">Upload</button>
+    <button id="uploadArchive" onclick="uploadFile(true)">Upload Archive</button><br>
+    <button id="showHowto" onclick="showHowto()">Setup DNS</button>
+    <span id="save-error"></span>
+  </div>
+  <div id="tree"></div>
+</div>
+
+<div id="editor">
+  <div id="in"><form><textarea id="code"></textarea></form></div>
+  <div id="out"></div>
+</div>
+
+<div id="howto">
+  <div>
+    <p id="howto-auto-url">Your site is available at: <a target="_blank" id="howto-auto-url-link"></a>
+    <div id="howto-demo">
+      <p>If you weren't using a demo account, you could additionally publish the site to an
+        arbitrary domain you control.
+    </div>
+    <div id="howto-nondemo">
+      <p>To set up your domain to point at your published site, add the following DNS records to
+        your domain. Replace <code>host.example.com</code> with your site's hostname.
+      <pre>  host.example.com IN CNAME <span id="howto-hostname">hostname</span>
+  sandstorm-www.host.example.com IN TXT <span id="howto-id">id</span></pre>
+      <p>Note: If your site may get a lot of traffic, consider putting it behind a CDN.
+        <a href="https://cloudflare.com" target="_blank">CloudFlare</a>, for example, can do this for free.
+    </div>
+    <p><button onclick="hideHowto()">Close</button>
+  </div>
+</div>
+
+<script type="text/javascript">
+// XMLHttpRequest's API is annoying. $.ajax() is easier except that its error handling makes no
+// sense.
+//
+// I based this somewhat on:
+//   https://plus.google.com/u/0/+JeffreyYasskin/posts/XjWc5oGs3dP
+//
+// (He just happened to post this on the same day I needed it.)
+function fetch(url, options) {
+  options = options || {};
+  return new Promise(function(resolve, reject) {
+    var xhr = new XMLHttpRequest();
+    xhr.onload = function () {
+      if (xhr.status >= 400) {
+        reject(new Error("XHR returned status " + xhr.status + ":\n" + xhr.responseText));
+      } else {
+        resolve(xhr);
+      }
+    };
+    xhr.onerror = function(e) { reject(e); };
+    if (options.hasOwnProperty('responseType'))
+      xhr.responseType = options.responseType;
+    var method = 'get';
+    if (options.hasOwnProperty('method'))
+      method = options.method;
+    xhr.open(method, url)
+    var data = undefined;
+    if (options.hasOwnProperty('data'))
+      data = options.data;
+    xhr.send(data);
+  }).catch(function (err) {
+    alert(err.message);
+    throw err;
+  });
+}
+
+function doGet(url) {
+  return fetch(url + '?t=' + new Date() / 1000);
+}
+function doPost(url, data) {
+  return fetch(url, { method: "post", data: data });
+}
+function doPut(url, data) {
+  return fetch(url, { method: "put", data: data });
+}
+function doDelete(url) {
+  return fetch(url, { method: "delete" });
+}
+function catchErrors(promise) {
+  promise.catch(function (err) {
+    console.error(err);
+  });
+}
+
+var saveState = "saved";
+var savePromise = Promise.resolve(undefined);
+
+function saved() {
+  if (saveState === "saving") {
+    $("#save").text("Saved");
+    saveState = "saved";
+  }
+}
+
+function saving() {
+  $("#save").prop("disabled", true).text("Saving...");
+  saveState = "saving";
+}
+
+var saveTimeout;
+function unsaved() {
+  saveState = "unsaved";
+  $("#save").prop("disabled", false).text("Save");
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(saveCurrent, 1000);
+}
+
+var currentPath;
+function saveCurrent() {
+  $("#save-error").text();
+  if (currentPath && saveState === "unsaved") {
+    saving();
+    savePromise = doPut("/api/file" + currentPath, editor.getValue()).then(function (response) {
+      saved();
+    }, function (err) {
+      console.error(err);
+      $("#save-error").text("Save failed!");
+      unsaved();
+    });
+  }
+  return savePromise;
+}
+
+function newDoc() {
+  saveCurrent().then(function () {
+    var filename = window.prompt("Enter file name.");
+    if (filename) {
+      var selected = $("#tree").jstree(true).get_selected(true)[0];
+      var path = "";
+      if (selected && selected.original.isDir) {
+        path = selected.original.serverPath;
+      }
+      path = path + "/" + filename;
+
+      catchErrors(doPut("/api/file" + path, "\n").then(function (response) {
+        $("#tree").jstree(true).destroy();
+        $("#tree").empty();
+        initTree();
+      }));
+    }
+  });
+}
+
+function uploadFile(isArchive) {
+  api = '/api/file'
+  if (isArchive) {
+    api = '/api/archive'
+  }
+
+  // Can't saveCurrent first because you can't trigger DOM events (ie. click) inside Promises
+
+  var form = $('<form><input type="file" name="test"></form>', { css: { 'display': 'none' }});
+  var input = $(form.children()[0]);
+
+  var selected = $("#tree").jstree(true).get_selected(true)[0];
+  var path = "";
+
+  if (selected && selected.original.isDir) {
+    path = selected.original.serverPath;
+  }
+
+  input.on('change', function(e) {
+    $.each(this.files, function(key, file) {
+      var filePath = path + "/" + file.name;
+      catchErrors(doPut(api + filePath, file).then(function (response) {
+        $("#tree").jstree(true).destroy();
+        $("#tree").empty();
+        initTree();
+      }));
+    });
+  });
+
+  // Trigger file selector (only works on newer browsers...)
+  input.click();
+}
+
+function deleteDoc() {
+  var selected = $("#tree").jstree(true).get_selected(true)[0];
+  if (!selected) {
+    window.alert("You must select a file to delete.");
+    return;
+  }
+
+  var path = selected.original.serverPath;
+  if (window.confirm("Delete " + path + "?")) {
+    doDelete("/api/file" + path).then(function (response) {
+      $("#tree").jstree(true).destroy();
+      $("#tree").empty();
+      initTree();
+    });
+  }
+}
+
+function publish() {
+  if (window.confirm("Publish now?")) {
+    doPost("/publish", "");
+  }
+}
+
+function filesToTree(parent, files) {
+  var result = [];
+  for (var file in files) {
+    var content = files[file];
+    var entry = {text: file};
+    var path = parent + "/" + file;
+    entry.serverPath = path;
+    if (typeof content === "object") {
+      entry.children = filesToTree(path, content);
+      entry.state = { "opened": false };
+      entry.isDir = true;
+    } else {
+      entry.icon = false;
+      entry.isDir = false;
+    }
+    result.push(entry);
+  }
+  return result;
+}
+
+function initTree() {
+  doGet("/api/file").then(function (xhr) {
+    var data = JSON.parse(xhr.responseText);
+    $("#tree").on("activate_node.jstree", function (e, data) {
+      if (!data.node.original.isDir) {
+        var serverPath = data.node.original.serverPath;
+        catchErrors(saveCurrent().then(function () {
+          return doGet("/file" + serverPath);
+        }).then(function (xhr) {
+          currentPath = serverPath;
+          editor.setValue(xhr.responseText, -1);
+          editor.on("change", unsaved);
+        }));
+      }
+    }).jstree({core: {data: filesToTree("", data)}});
+  });
+}
+
+$(function () {
+  initTree();
+});
+
+function showHowto() {
+  doGet("/publicId").then(function (xhr) {
+    var info = JSON.parse(xhr.responseText);
+    var url = document.createElement("a");
+    url.href = info.autoUrl;
+    $("#howto-hostname").text(url.hostname);
+    $("#howto-id").text(info.publicId);
+    $("#howto").addClass("shown");
+    var link = $("#howto-auto-url-link");
+    link.text(info.autoUrl);
+    link.attr("href", info.autoUrl);
+    $("#howto-auto-url").show();
+    if (info.isDemoUser) {
+      $("#howto-demo").show();
+      $("#howto-nondemo").hide();
+    } else {
+      $("#howto-demo").hide();
+      $("#howto-nondemo").show();
+    }
+  });
+}
+
+function hideHowto() {
+  $("#howto").removeClass("shown");
+}
+
+// Because highlight.js is a bit awkward at times
+var languageOverrides = {
+  js: 'javascript',
+  html: 'xml'
+};
+
+var md = markdownit({
+  html: true,
+  highlight: function(code, lang){
+    if(languageOverrides[lang]) lang = languageOverrides[lang];
+    if(lang && hljs.getLanguage(lang)){
+      try {
+        return hljs.highlight(lang, code).value;
+      }catch(e){}
+    }
+    return '';
+  }
+})
+  .use(markdownitFootnote);
+
+
+function update(e){
+  setOutput(e.getValue());
+}
+
+function setOutput(val){
+  var out = document.getElementById('out');
+  var old = out.cloneNode(true);
+  out.innerHTML = md.render(val);
+
+  var allold = old.getElementsByTagName("*");
+  if (allold === undefined) return;
+
+  var allnew = out.getElementsByTagName("*");
+  if (allnew === undefined) return;
+
+  for (var i = 0, max = Math.min(allold.length, allnew.length); i < max; i++) {
+    if (!allold[i].isEqualNode(allnew[i])) {
+      out.scrollTop = allnew[i].offsetTop;
+      return;
+    }
+  }
+}
+
+var editor = CodeMirror.fromTextArea(document.getElementById('code'), {
+  mode: 'gfm',
+  lineNumbers: false,
+  matchBrackets: true,
+  lineWrapping: true,
+  theme: 'base16-light',
+  extraKeys: {"Enter": "newlineAndIndentContinueMarkdownList"}
+});
+
+editor.on('change', update);
+
+document.addEventListener('keydown', function(e){
+  if(e.keyCode == 83 && (e.ctrlKey || e.metaKey)){
+     saveCurrent();
+     e.preventDefault();
+     return false;
+  }
+});
+
+</script>
+</body>
+</html>
+
