@@ -1,22 +1,23 @@
 module SSHakyll
   (
-    someFunc,
     encodeTreeList,
-    getFileTreeList
+    treeListToJSON,
+    getFileTreeList,
+    saveFile,
+    deleteFile
   ) where
 
-someFunc :: IO ()
-someFunc = putStrLn "someFunc"
-import Control.Monad (forM)
-import System.Directory (doesDirectoryExist, getDirectoryContents)
-import System.FilePath ((</>))
+import Control.Monad (forM, when)
+import System.Directory (doesDirectoryExist, getDirectoryContents,
+                         createDirectoryIfMissing, doesFileExist, removeFile)
+import System.FilePath ((</>), dropFileName)
 import Data.Maybe (fromMaybe)
 
 import System.IO (withFile, IOMode( ReadMode ), hFileSize)
 
 import Data.Aeson (ToJSON(..), object, (.=), Value(..), encode)
 import Data.HashMap.Strict (union)
-import Data.ByteString.Lazy (ByteString)
+import qualified Data.ByteString.Lazy as LB (ByteString, writeFile)
 import qualified Data.Text as T (pack)
 
 
@@ -36,7 +37,7 @@ unionValue _ _ = Null
 treeListToJSON :: [FileTree] -> Value
 treeListToJSON = foldr (unionValue . toJSON) Null
 
-encodeTreeList :: [FileTree] -> ByteString
+encodeTreeList :: [FileTree] -> LB.ByteString
 encodeTreeList = encode . treeListToJSON
 
 getFileTreeList :: FilePath -> IO [FileTree]
@@ -55,3 +56,15 @@ getFileTreeList topdir = do
 
 getFileSize :: FilePath -> IO Integer
 getFileSize path = withFile path ReadMode hFileSize
+
+saveFile :: FilePath -> LB.ByteString -> IO ()
+saveFile fn fc = do
+  createDirectoryIfMissing True dir
+  LB.writeFile fn fc
+
+  where dir = dropFileName fn
+
+deleteFile :: FilePath -> IO ()
+deleteFile fn = do
+  fileExists <- doesFileExist fn
+  when fileExists $ removeFile fn
