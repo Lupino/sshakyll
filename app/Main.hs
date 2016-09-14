@@ -5,6 +5,7 @@ import SSHakyll
 import Network (PortID(PortNumber))
 import Web.Scotty
 import Network.HTTP.Types
+import Network.Wai (Request(..))
 import Network.Wai.Handler.Warp (setPort, setHost)
 import Network.Wai.Middleware.RequestLogger (logStdoutDev)
 import Data.Streaming.Network.Internal (HostPreference(Host))
@@ -12,7 +13,7 @@ import Network.Wai.Middleware.Static (staticPolicy, noDots, (>->), addBase)
 import Data.Default.Class (def)
 import Control.Monad.IO.Class (liftIO)
 import System.FilePath ((</>), dropDrive)
-import qualified Data.Text as T (pack)
+import qualified Data.Text as T (pack, unpack)
 import Data.Aeson (object, (.=))
 
 main :: IO ()
@@ -27,16 +28,22 @@ main = do
       json $ treeListToJSON trees
 
     put (regex "^/api/file/(.*)") $ do
-      path <- param "1"
+      path <- filePath root
       wb <- body
-      liftIO $ saveFile (root </> path) wb
+      liftIO $ saveFile path wb
 
       json $ object [ "result" .= T.pack "OK" ]
 
     delete (regex "^/api/file/(.*)") $ do
-      path <- param "1"
-      liftIO $ deleteFile $ root </> path
+      path <- filePath root
+      liftIO $ deleteFile path
       json $ object [ "result" .= T.pack "OK" ]
 
   where staticMid = staticPolicy (noDots >-> addBase "public")
         root = "public/file"
+
+filePath :: FilePath -> ActionM FilePath
+filePath root = do
+  req <- request
+  let path = foldr ((</>) . T.unpack) "" (drop 2 $ pathInfo req)
+  return $ root </> path

@@ -35,6 +35,7 @@ executable sshakyll
                      , http-types
                      , data-default-class
                      , streaming-commons
+                     , wai
                      , wai-extra
                      , network
                      , warp
