@@ -376,9 +376,6 @@ function fetch(url, options) {
     if (options.hasOwnProperty('data'))
       data = options.data;
     xhr.send(data);
-  }).catch(function (err) {
-    alert(err.message);
-    throw err;
   });
 }
 
@@ -505,6 +502,8 @@ function deleteDoc() {
       $("#tree").jstree(true).destroy();
       $("#tree").empty();
       initTree();
+    }).catch(function(err) {
+      window.alert('Delete directory failed. because it is not empty.');
     });
   }
 }
