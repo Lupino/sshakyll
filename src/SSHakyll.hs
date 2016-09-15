@@ -5,7 +5,8 @@ module SSHakyll
     getFileTreeList,
     saveFile,
     deleteFile,
-    publish
+    publish,
+    getPublicId
   ) where
 
 import Control.Monad (forM, when)
@@ -19,8 +20,9 @@ import System.IO (withFile, IOMode( ReadMode ), hFileSize)
 
 import Data.Aeson (ToJSON(..), object, (.=), Value(..), encode)
 import Data.HashMap.Strict (union)
-import qualified Data.ByteString.Lazy as LB (ByteString, writeFile)
+import qualified Data.ByteString.Lazy as LB (ByteString, writeFile, hGetContents)
 import qualified Data.Text as T (pack)
+import System.Process (createProcess, StdStream(..), proc, std_out)
 
 import Site
 import Hakyll (Configuration(..), defaultConfiguration)
@@ -86,3 +88,8 @@ publish root = do
                                       tmpDirectory = root </> "_cache/tmp",
                                       providerDirectory = root </> "source" }
         path = root </> "source" </> "config.json"
+
+getPublicId :: IO LB.ByteString
+getPublicId = do
+  (_,Just hout,_,_) <- createProcess (proc "./getPublicId" []){ std_out = CreatePipe }
+  LB.hGetContents hout

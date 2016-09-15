@@ -563,7 +563,7 @@ $(function () {
 });
 
 function showHowto() {
-  doGet("/publicId").then(function (xhr) {
+  doGet("/api/publicId").then(function (xhr) {
     var info = JSON.parse(xhr.responseText);
     var url = document.createElement("a");
     url.href = info.autoUrl;
