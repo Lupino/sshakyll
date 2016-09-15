@@ -425,6 +425,12 @@ function saveCurrent() {
   $("#save-error").text();
   if (currentPath && saveState === "unsaved") {
     saving();
+    if (!isTextFile(currentPath)) {
+      return new Promise(function(resolve, reject) {
+        console.error("Can't save un text filed");
+        reject("Save failed!");
+      });
+    }
     savePromise = doPut("/api/file" + currentPath, editor.getValue()).then(function (response) {
       saved();
     }, function (err) {
@@ -538,14 +544,14 @@ function initTree() {
   doGet("/api/file").then(function (xhr) {
     var data = JSON.parse(xhr.responseText);
     $("#tree").on("activate_node.jstree", function (e, data) {
-      if (!data.node.original.isDir) {
+      if (!data.node.original.isDir && isTextFile(data.node.original.serverPath)) {
         var serverPath = data.node.original.serverPath;
         catchErrors(saveCurrent().then(function () {
           return doGet("/api/file" + serverPath);
         }).then(function (xhr) {
           currentPath = serverPath;
-          editor.setValue(xhr.responseText, -1);
-          editor.on("change", unsaved);
+          setEditorMode(xhr.getResponseHeader("content-type"));
+          editor.setValue(xhr.responseText);
         }));
       }
     }).jstree({core: {data: filesToTree("", data)}});
@@ -604,7 +610,9 @@ var md = markdownit({
 
 
 function update(e){
-  setOutput(e.getValue());
+  if (needPreview) {
+    setOutput(e.getValue());
+  }
 }
 
 function setOutput(val){
@@ -628,7 +636,7 @@ function setOutput(val){
 
 var editor = CodeMirror.fromTextArea(document.getElementById('code'), {
   mode: 'gfm',
-  lineNumbers: false,
+  lineNumbers: true,
   matchBrackets: true,
   lineWrapping: true,
   theme: 'base16-light',
@@ -636,6 +644,7 @@ var editor = CodeMirror.fromTextArea(document.getElementById('code'), {
 });
 
 editor.on('change', update);
+editor.on("change", unsaved);
 
 document.addEventListener('keydown', function(e){
   if(e.keyCode == 83 && (e.ctrlKey || e.metaKey)){
@@ -644,6 +653,37 @@ document.addEventListener('keydown', function(e){
      return false;
   }
 });
+
+var needPreview = true;
+function setEditorMode(type) {
+  var mode = "gfm";
+  needPreview = true;
+
+  if (/json|javascript/.exec(type)) {
+    mode = 'javascript';
+    needPreview = false;
+  }
+  if (/html/.exec(type)) {
+    mode = "htmlmixed";
+    needPreview = false;
+  }
+  if (/xml/.exec(type)) {
+    mode = "xml";
+  }
+  if (/css/.exec(type)) {
+    mode = "css";
+    needPreview = false;
+  }
+  editor.setOption("mode", mode);
+}
+
+function isTextFile(fn) {
+  if (/\.(json|js|html|markdown|md|rst|css|htm|xml|svg|txt)$/.exec(fn)) {
+    return true;
+  }
+  return false;
+}
+
 
 </script>
 </body>
