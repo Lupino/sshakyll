@@ -3,8 +3,8 @@ module Main where
 
 import SSHakyll
 import Network (PortID(PortNumber))
-import Web.Scotty
-import Network.HTTP.Types
+import Web.Scotty (get, post, delete, put, raw, settings, request, json, regex,
+                   ActionM, redirect, setHeader, scottyOpts, body, middleware)
 import Network.Wai (Request(..))
 import Network.Wai.Handler.Warp (setPort, setHost)
 import Network.Wai.Middleware.RequestLogger (logStdoutDev)
@@ -16,16 +16,48 @@ import System.FilePath ((</>), dropDrive)
 import qualified Data.Text as T (pack, unpack)
 import qualified Data.Text.Lazy as TL (pack, unpack)
 import qualified Data.ByteString.Char8 as BC (unpack)
-import qualified Data.ByteString.Lazy.Char8 as BL
+import qualified Data.ByteString.Lazy.Char8 as BL (readFile)
 import Data.Aeson (object, (.=))
 import Network.Mime (MimeType, defaultMimeLookup)
 
+import Options.Applicative (Parser(..), execParser, strOption, option, auto,
+                            long, short, help, value, (<*>), (<>), helper,
+                            fullDesc, info, progDesc, metavar)
+
+data Options = Options { getHost :: String,
+                         getPort :: Int,
+                         getRoot :: String }
+
+parser :: Parser Options
+parser = Options <$> strOption (long "host"
+                                <> short 'h'
+                                <> metavar "HOST"
+                                <> help "The sshakyll server host."
+                                <> value "127.0.0.1")
+                 <*> option auto (long "port"
+                                  <> short 'p'
+                                  <> metavar "PORT"
+                                  <> help "The sshakyll server port."
+                                  <> value 8000 )
+                 <*> strOption (long "directory"
+                                <> short 'd'
+                                <> metavar "DIR"
+                                <> help "Site root dirctory."
+                                <> value "site" )
+
 main :: IO ()
-main = do
-  let opts = def { settings = setPort 10000 $ setHost (Host "127.0.0.1") (settings def) }
-  scottyOpts opts $ do
+main = execParser opts >>= program
+  where
+    opts = info (helper <*> parser)
+      (fullDesc
+       <> progDesc "SSHakyll server" )
+
+program :: Options -> IO ()
+program opts =
+  scottyOpts serverOpts $ do
     middleware logStdoutDev
     middleware staticMid
+    middleware staticMid'
 
     get "/" $ redirect "/index.html"
 
@@ -57,8 +89,17 @@ main = do
       code <- liftIO $ publish root
       json $ object [ "result" .= code ]
 
+    get "/api/publicId" $ do
+      fc <- liftIO getPublicId
+      raw fc
+
+
   where staticMid = staticPolicy (addBase "public")
-        root = "site"
+        staticMid' = staticPolicy (addBase $ root </> "source")
+        port = getPort opts
+        host = getHost opts
+        root = getRoot opts
+        serverOpts = def { settings = setPort port $ setHost (Host host) (settings def) }
 
 filePath :: FilePath -> ActionM FilePath
 filePath root = do
