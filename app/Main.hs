@@ -7,7 +7,7 @@ import Web.Scotty (get, post, delete, put, raw, settings, request, json, regex,
                    ActionM, redirect, setHeader, scottyOpts, body, middleware)
 import Network.Wai (Request(..))
 import Network.Wai.Handler.Warp (setPort, setHost)
-import Network.Wai.Middleware.RequestLogger (logStdoutDev)
+import Network.Wai.Middleware.RequestLogger (logStdout)
 import Data.Streaming.Network.Internal (HostPreference(Host))
 import Network.Wai.Middleware.Static (staticPolicy, noDots, (>->), addBase)
 import Data.Default.Class (def)
@@ -55,7 +55,7 @@ main = execParser opts >>= program
 program :: Options -> IO ()
 program opts =
   scottyOpts serverOpts $ do
-    middleware logStdoutDev
+    middleware logStdout
     middleware staticMid
     middleware staticMid'
 
