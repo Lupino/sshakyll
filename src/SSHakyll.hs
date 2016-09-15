@@ -9,7 +9,7 @@ module SSHakyll
     getPublicId
   ) where
 
-import Control.Monad (forM, when)
+import Control.Monad (forM, when, unless)
 import System.Directory (doesDirectoryExist, getDirectoryContents,
                          createDirectoryIfMissing, doesFileExist,
                          removeFile, removeDirectory)
@@ -49,6 +49,8 @@ encodeTreeList = encode . treeListToJSON
 
 getFileTreeList :: FilePath -> IO [FileTree]
 getFileTreeList topdir = do
+    isDirectory <- doesDirectoryExist topdir
+    unless isDirectory $ createDirectoryIfMissing True topdir
     names <- getDirectoryContents topdir
     let properNames = filter (`notElem` [".", ".."]) names
     forM properNames $ \name -> do
