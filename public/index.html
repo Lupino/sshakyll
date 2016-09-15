@@ -453,6 +453,10 @@ function newDoc() {
       }
       path = path + "/" + filename;
 
+      if (!isTextFile(path)) {
+        path = path + '.md';
+      }
+
       catchErrors(doPut("/api/file" + path, "\n").then(function (response) {
         $("#tree").jstree(true).destroy();
         $("#tree").empty();
