@@ -4,7 +4,8 @@ module SSHakyll
     treeListToJSON,
     getFileTreeList,
     saveFile,
-    deleteFile
+    deleteFile,
+    publish
   ) where
 
 import Control.Monad (forM, when)
@@ -20,6 +21,9 @@ import Data.Aeson (ToJSON(..), object, (.=), Value(..), encode)
 import Data.HashMap.Strict (union)
 import qualified Data.ByteString.Lazy as LB (ByteString, writeFile)
 import qualified Data.Text as T (pack)
+
+import Site
+import Hakyll (Configuration(..), defaultConfiguration)
 
 
 data FileTree = Directory String [FileTree] | FileName String Int
@@ -71,3 +75,14 @@ deleteFile fn = do
   when isDirectory $ removeDirectory fn
   fileExists <- doesFileExist fn
   when fileExists $ removeFile fn
+
+publish :: FilePath -> IO ()
+publish root = do
+  buildWithExitCode conf path
+  return ()
+
+  where conf = defaultConfiguration { destinationDirectory = root </> "www",
+                                      storeDirectory = root </> "_cache",
+                                      tmpDirectory = root </> "_cache/tmp",
+                                      providerDirectory = root </> "source" }
+        path = root </> "source" </> "config.json"

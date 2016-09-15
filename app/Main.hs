@@ -39,11 +39,15 @@ main = do
       liftIO $ deleteFile path
       json $ object [ "result" .= T.pack "OK" ]
 
-  where staticMid = staticPolicy (noDots >-> addBase "public")
-        root = "public/file"
+    post "/api/publish" $ do
+      code <- liftIO $ publish root
+      json $ object [ "result" .= code ]
+
+  where staticMid = staticPolicy (addBase "public")
+        root = "site"
 
 filePath :: FilePath -> ActionM FilePath
 filePath root = do
   req <- request
   let path = foldr ((</>) . T.unpack) "" (drop 2 $ pathInfo req)
-  return $ root </> path
+  return $ root </> "source" </> path
