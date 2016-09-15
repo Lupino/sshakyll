@@ -682,7 +682,7 @@ function setEditorMode(type) {
 }
 
 function isTextFile(fn) {
-  if (/\.(json|js|html|markdown|md|rst|css|htm|xml|svg|txt)$/.exec(fn)) {
+  if (/\.(json|js|html|markdown|md|rst|css|htm|xml|svg|txt)$/i.exec(fn)) {
     return true;
   }
   return false;
