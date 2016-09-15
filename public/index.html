@@ -541,7 +541,7 @@ function initTree() {
       if (!data.node.original.isDir) {
         var serverPath = data.node.original.serverPath;
         catchErrors(saveCurrent().then(function () {
-          return doGet("/file" + serverPath);
+          return doGet("/api/file" + serverPath);
         }).then(function (xhr) {
           currentPath = serverPath;
           editor.setValue(xhr.responseText, -1);
