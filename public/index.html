@@ -13,29 +13,12 @@
   <script src="markdown-it.js"></script>
   <script src="markdown-it-footnote.js"></script>
   <script src="highlight.pack.js"></script>
-  <script src="codemirror/lib/codemirror.js"></script>
-  <script src="codemirror/overlay.js"></script>
-  <script src="codemirror/xml/xml.js"></script>
-  <script src="codemirror/markdown/markdown.js"></script>
-  <script src="codemirror/gfm/gfm.js"></script>
-  <script src="codemirror/javascript/javascript.js"></script>
-  <script src="codemirror/css/css.js"></script>
-  <script src="codemirror/htmlmixed/htmlmixed.js"></script>
-  <script src="codemirror/lib/util/continuelist.js"></script>
-  <script src="rawinflate.js"></script>
-  <script src="rawdeflate.js"></script>
-  <link rel="stylesheet" href="base16-light.css">
-  <link rel="stylesheet" href="codemirror/lib/codemirror.css">
   <link rel="stylesheet" href="default.css">
 
   <style type="text/css" media="screen">
     body {
       overflow: hidden;
       margin: 0;
-    }
-
-    .CodeMirror pre{
-      line-height: 16px;
     }
 
     #editor {
@@ -59,19 +42,8 @@
       box-shadow: -10px 2px 6px 10px rgba(0,0,0,0.4);
     }
 
-    .CodeMirror {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      width: auto;
-      height: auto;
-    }
-
-    .CodeMirror-scroll {
-      padding: 30px;
-      box-sizing: border-box;
+    #in.uninitialized {
+      background-color: #ebebeb;
     }
 
     #out{
@@ -89,66 +61,6 @@
       line-height: 1.5em
     }
 
-    #menu {
-      display: none;
-      position: fixed;
-      background-color: #111;
-      border-radius: 5px;
-      top: 50%;
-      left: 50%;
-      width: 250px;
-      height: 150px;
-      margin-top: -75px;
-      margin-left: -125px;
-      z-index: 99;
-      text-align: center;
-      color: white;
-    }
-
-    #menu > span {
-      display: block;
-      font-size: 1.5em;
-      line-height: 1.3;
-      margin-top: 0.25em;
-    }
-
-    #menu > div {
-      display: inline-block;
-      width: 100px;
-      text-align: center;
-      vertical-align: top;
-      cursor: pointer;
-      opacity: 0.7;
-    }
-
-    #menu > div:hover {
-      opacity: 1;
-    }
-
-    #menu svg {
-      width: 64px;
-      height: 64px;
-      margin: 0 auto;
-      display: block;
-    }
-    #menu path {
-      fill: #fff;
-    }
-
-    #close-menu {
-      position: absolute;
-      top: 5px;
-      right: 9px;
-      color: white;
-      cursor: pointer;
-    }
-
-    .emoji {
-      width: 1em;
-      height: 1em;
-      vertical-align: baseline;
-    }
-
     @media screen and (max-width: 1024px) {
       #in {
         display: none;
@@ -157,23 +69,6 @@
         left: 0;
         padding-left: 10px;
       }
-    }
-
-    .cm-header-1 { font-size: 2em; }
-    .cm-header-2 { font-size: 1.75em; }
-    .cm-header-3 { font-size: 1.5em; }
-    .cm-header-4 { font-size: 1.3em; }
-    .cm-header-5 { font-size: 1.2em; }
-    .cm-header-6 { font-size: 1.15em; }
-
-    .cm-quote { color: #90a959; font-style: italic; }
-
-    .view #in {
-      display: none;
-    }
-    .view #out {
-      left: 0;
-      padding-left: 10px;
     }
 
     a{ color: #0645ad; text-decoration:none;}
@@ -323,7 +218,7 @@
 </div>
 
 <div id="editor">
-  <div id="in"><form><textarea id="code"></textarea></form></div>
+  <div id="in" class="uninitialized"></div>
   <div id="out"></div>
 </div>
 
@@ -554,8 +449,13 @@ function initTree() {
           return doGet("/api/file" + serverPath);
         }).then(function (xhr) {
           currentPath = serverPath;
-          setEditorMode(xhr.getResponseHeader("content-type"));
-          editor.setValue(xhr.responseText);
+          if (!editorInitialized) initEditor();
+          editor.removeAllListeners("change");
+          editor.setValue(xhr.responseText, -1);
+          editor.on("change", unsaved);
+          editor.on("change", update);
+          setEditorMode(xhr.getResponseHeader("content-type"), serverPath);
+          setTimeout(update, 100);
         }));
       }
     }).jstree({core: {data: filesToTree("", data)}});
@@ -614,8 +514,9 @@ var md = markdownit({
 
 
 function update(e){
-  if (needPreview) {
-    setOutput(e.getValue());
+  var mode = editor.getSession().getMode().$id;
+  if (/markdown|xml|html|text/i.exec(mode)) {
+    setOutput(editor.getValue());
   }
 }
 
@@ -638,49 +539,6 @@ function setOutput(val){
   }
 }
 
-var editor = CodeMirror.fromTextArea(document.getElementById('code'), {
-  mode: 'gfm',
-  lineNumbers: true,
-  matchBrackets: true,
-  lineWrapping: true,
-  theme: 'base16-light',
-  extraKeys: {"Enter": "newlineAndIndentContinueMarkdownList"}
-});
-
-editor.on('change', update);
-editor.on("change", unsaved);
-
-document.addEventListener('keydown', function(e){
-  if(e.keyCode == 83 && (e.ctrlKey || e.metaKey)){
-     saveCurrent();
-     e.preventDefault();
-     return false;
-  }
-});
-
-var needPreview = true;
-function setEditorMode(type) {
-  var mode = "gfm";
-  needPreview = true;
-
-  if (/json|javascript/.exec(type)) {
-    mode = 'javascript';
-    needPreview = false;
-  }
-  if (/html/.exec(type)) {
-    mode = "htmlmixed";
-    needPreview = false;
-  }
-  if (/xml/.exec(type)) {
-    mode = "xml";
-  }
-  if (/css/.exec(type)) {
-    mode = "css";
-    needPreview = false;
-  }
-  editor.setOption("mode", mode);
-}
-
 function isTextFile(fn) {
   if (/\.(json|js|html|markdown|md|rst|css|htm|xml|svg|txt)$/i.exec(fn)) {
     return true;
@@ -688,7 +546,57 @@ function isTextFile(fn) {
   return false;
 }
 
+</script>
+<script src="ace/ace.js" type="text/javascript" charset="utf-8"></script>
+<script>
+var editorInitialized = false;
+var editor;
 
+var MODE_MAP = {
+  "text/javascript": "javascript",
+  "text/x-markdown": "markdown",
+  "text/html": "html",
+  "text/css": "css",
+  "text/yaml": "yaml",
+  "text/plain": "text",
+  "image/svg+xml": "xml",
+  "application/json": "json"
+};
+
+function getModeFromFileName(fileName) {
+  var mode = "text";
+  if (/\.js$/i.exec(fileName)) {
+    mode = 'javascript';
+  }
+  if (/\.(md|markdown|rst)/i.exec(fileName)) {
+    mode = 'markdown';
+  }
+  if (/\.css$/i.exec(fileName)) {
+    mode = 'css'
+  }
+  return mode;
+}
+
+function setEditorMode(mimeType, fileName) {
+  var semiPos = mimeType.indexOf(";");
+  if (semiPos >= 0) {
+    mimeType = mimeType.slice(0, semiPos);
+  }
+  mimeType = mimeType.trim();
+
+  if (mimeType in MODE_MAP) {
+    editor.getSession().setMode("ace/mode/" + MODE_MAP[mimeType]);
+  } else {
+    editor.getSession().setMode("ace/mode/" + getModeFromFileName(fileName));
+  }
+}
+
+function initEditor() {
+  $("#editor").removeClass("uninitialized");
+  editor = ace.edit("in");
+  editor.setTheme("ace/theme/chrome");
+  editorInitialized = true;
+}
 </script>
 </body>
 </html>
