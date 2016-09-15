@@ -27,6 +27,8 @@ main = do
     middleware logStdoutDev
     middleware staticMid
 
+    get "/" $ redirect "/index.html"
+
     get "/api/file" $ do
       trees <- liftIO $ getFileTreeList $ root </> "source"
       json $ treeListToJSON trees
