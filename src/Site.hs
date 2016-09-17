@@ -11,38 +11,32 @@ import Hakyll
 import Hakyll.Commands (rebuild)
 import qualified Hakyll.Core.Logger as Logger
 import Data.String (fromString)
-import Data.Aeson (FromJSON(..), (.:), withObject, decodeStrict)
+import qualified Data.Text as T (unpack, Text)
+import Data.Aeson (FromJSON(..), (.:), withObject, decodeStrict, Value(..), Array)
 import System.IO (readFile)
+import System.FilePath ((</>))
 import Data.ByteString.Char8 (pack)
 import System.Exit (ExitCode(ExitSuccess))
 import Data.Char (ord)
 import Numeric (showHex)
+import Data.Vector (toList)
 
-data Post = Post { getPostRegex     :: String,
-                   getPostTemplates :: [FilePath] }
-
-instance FromJSON Post where
-  parseJSON = withObject "Post" $ \o -> do
-    getPostRegex     <- o .: "regex"
-    getPostTemplates <- o .: "templates"
-    return Post{..}
-
-data Page = Page { getPageFileList  :: [FilePath],
+data Page = Page { getPagePattern   :: Value,
                    getPageTemplates :: [FilePath] }
 
 instance FromJSON Page where
   parseJSON = withObject "Page" $ \o -> do
-    getPageFileList  <- o .: "files"
+    getPagePattern   <- o .: "pattern"
     getPageTemplates <- o .: "templates"
     return Page{..}
 
-data Field = Field { getFieldRegex :: String,
-                     getFieldName  :: String }
+data Field = Field { getFieldPattern :: String,
+                     getFieldName    :: String }
 
 instance FromJSON Field where
   parseJSON = withObject "Field" $ \o -> do
-    getFieldRegex <- o .: "regex"
-    getFieldName  <- o .: "field"
+    getFieldPattern <- o .: "pattern"
+    getFieldName    <- o .: "field"
     return Field{..}
 
 data Archive = Archive { getArchiveFile      :: FilePath,
@@ -58,34 +52,33 @@ instance FromJSON Archive where
     getArchiveTemplates <- o .: "templates"
     return Archive{..}
 
-data Config = Config { getPostList    :: [Post],
-                       getPageList    :: [Page],
+data Config = Config { getPageList    :: [Page],
                        getArchiveList :: [Archive] }
 
 instance FromJSON Config where
   parseJSON = withObject "Config" $ \o -> do
-    getPostList    <- o .: "posts"
     getPageList    <- o .: "pages"
     getArchiveList <- o .: "archives"
     return Config{..}
 
-postToRules :: Post -> Rules ()
-postToRules post = match regex $ do
-  route $ setExtension "html"
-  compile $ pandocCompiler
-      >>= loadAndApplyTemplateList tpls postCtx
-      >>= relativizeUrls
-  where regex = fromString $ getPostRegex post
-        tpls  = map fromString $ getPostTemplates post
+valueToPattern :: Value -> Pattern
+valueToPattern (String v) = fromString $ T.unpack v
+valueToPattern (Array  v) = fromList $ extractValue v
+valueToPattern _          = error "Pattern"
+
+extractValue :: Array -> [Identifier]
+extractValue v = map extract $ toList v
+  where extract (String v) = fromString $ T.unpack v
+        extract _ = ""
 
 pageToRules :: Page -> Rules ()
-pageToRules page =  match (fromList files) $ do
+pageToRules page =  match pat $ do
   route $ setExtension "html"
   compile $ pandocCompiler
       >>= loadAndApplyTemplateList tpls postCtx
       >>= relativizeUrls
 
-  where files = map fromString $ getPageFileList page
+  where pat   = valueToPattern $ getPagePattern page
         tpls  = map fromString $ getPageTemplates page
 
 archiveToRules :: Archive -> Rules ()
@@ -108,12 +101,10 @@ archiveToRules archive = match file $ do
 
 configToRules :: Config -> Rules ()
 configToRules config = do
-  mapM_ postToRules posts
   mapM_ pageToRules pages
   mapM_ archiveToRules archives
 
-  where posts = getPostList config
-        pages = getPageList config
+  where pages = getPageList config
         archives = getArchiveList config
 
 loadAndApplyTemplateList :: [Identifier]            -- ^ Template identifier
@@ -128,9 +119,9 @@ loadAndApplyTemplateList [] _ item = return item
 
 fieldToContext :: Field -> Compiler (Context String)
 fieldToContext field = do
-  posts <- recentFirst =<< loadAll regex
+  posts <- recentFirst =<< loadAll pat
   return $ listField name postCtx (return posts)
-  where regex = fromString $ getFieldRegex field
+  where pat = fromString $ getFieldPattern field
         name  = getFieldName field
 
 fieldListToContext :: [Field] -> Compiler (Context String)
