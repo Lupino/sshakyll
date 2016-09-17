@@ -68,7 +68,6 @@ program opts =
 
     get (regex "^/api/file/(.*)") $ do
       path <- filePath root
-      liftIO $ print path
       let headers = [("Content-Type", getMimeType path)]
       setHeader "Content-Type" $ TL.pack $ BC.unpack $ getMimeType path
       fc <- liftIO $ BL.readFile path
