@@ -15,6 +15,7 @@ import qualified Data.Text as T (unpack, Text)
 import Data.Aeson (FromJSON(..), (.:), withObject, decodeStrict, Value(..), Array)
 import System.IO (readFile)
 import System.FilePath ((</>))
+import System.Directory (doesFileExist)
 import Data.ByteString.Char8 (pack)
 import System.Exit (ExitCode(ExitSuccess))
 import Data.Char (ord)
@@ -40,6 +41,7 @@ instance FromJSON Field where
     return Field{..}
 
 data Archive = Archive { getArchiveFile      :: FilePath,
+                         getArchiveExists    :: Bool,
                          getArchiveTitle     :: String,
                          getArchiveFieldList :: [Field],
                          getArchiveTemplates :: [FilePath] }
@@ -50,6 +52,7 @@ instance FromJSON Archive where
     getArchiveTitle     <- o .: "title"
     getArchiveFieldList <- o .: "fields"
     getArchiveTemplates <- o .: "templates"
+    let getArchiveExists = False
     return Archive{..}
 
 data Config = Config { getPageList    :: [Page],
@@ -82,22 +85,26 @@ pageToRules page =  match pat $ do
         tpls  = map fromString $ getPageTemplates page
 
 archiveToRules :: Archive -> Rules ()
-archiveToRules archive = match file $ do
+archiveToRules archive = rule $ do
   route idRoute
   compile $ do
     fc <- fieldListToContext fields
 
     let archiveCtx = constField "title" title `mappend` fc
 
-    getResourceBody
-        >>= applyAsTemplate archiveCtx
+    let body = if exists then getResourceBody >>= applyAsTemplate archiveCtx
+               else makeItem ""
+
+    body
         >>= loadAndApplyTemplateList tpls archiveCtx
         >>= relativizeUrls
 
-  where file   = fromString $ getArchiveFile archive
+  where file   = getArchiveFile archive
         tpls   = map fromString $ getArchiveTemplates archive
         title  = getArchiveTitle archive
         fields = getArchiveFieldList archive
+        exists = getArchiveExists archive
+        rule   = if exists then match (fromString file) else create [fromString file]
 
 configToRules :: Config -> Rules ()
 configToRules config = do
@@ -137,6 +144,11 @@ postCtx =
     dateField "date" "%B %e, %Y" `mappend`
     defaultContext
 
+fillArchive :: FilePath -> Archive -> IO Archive
+fillArchive root archive = update <$> doesFileExist fn
+  where fn = root </> getArchiveFile archive
+        update exists = archive { getArchiveExists = exists }
+
 preParseUnicode :: String -> String
 preParseUnicode (x:xs) = if ord x > 255 then "\\u" ++ showHex (ord x) "" ++ preParseUnicode xs
                          else x:preParseUnicode xs
@@ -149,6 +161,7 @@ readConfig fn = parseConfig . preParseUnicode <$> readFile fn
 buildWithExitCode :: Configuration -> FilePath -> IO ExitCode
 buildWithExitCode conf fn = do
   (Just config) <- readConfig fn
+  archives <- mapM (fillArchive root) $ getArchiveList config
   logger <- Logger.new Logger.Error
   rebuild  conf logger $ do
     match "images/*" $ do
@@ -163,6 +176,8 @@ buildWithExitCode conf fn = do
         route   idRoute
         compile compressCssCompiler
 
-    configToRules config
+    configToRules config { getArchiveList = archives }
 
     match "templates/*" $ compile templateBodyCompiler
+
+  where root = providerDirectory conf
