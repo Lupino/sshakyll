@@ -12,7 +12,7 @@ module SSHakyll
 import Control.Monad (forM, when, unless)
 import System.Directory (doesDirectoryExist, getDirectoryContents,
                          createDirectoryIfMissing, doesFileExist,
-                         removeFile, removeDirectory)
+                         removeFile, removeDirectoryRecursive)
 import System.FilePath ((</>), dropFileName)
 import Data.Maybe (fromMaybe)
 
@@ -76,7 +76,7 @@ saveFile fn fc = do
 deleteFile :: FilePath -> IO ()
 deleteFile fn = do
   isDirectory <- doesDirectoryExist fn
-  when isDirectory $ removeDirectory fn
+  when isDirectory $ removeDirectoryRecursive fn
   fileExists <- doesFileExist fn
   when fileExists $ removeFile fn
 
