@@ -3,7 +3,7 @@ module Main where
 
 import SSHakyll
 import Network (PortID(PortNumber))
-import Web.Scotty (get, post, delete, put, raw, settings, request, json, regex,
+import Web.Scotty (get, post, delete, put, raw, settings, request, json, regex, header,
                    ActionM, redirect, setHeader, scottyOpts, body, middleware)
 import Network.Wai (Request(..))
 import Network.Wai.Handler.Warp (setPort, setHost)
@@ -19,6 +19,7 @@ import qualified Data.ByteString.Char8 as BC (unpack)
 import qualified Data.ByteString.Lazy.Char8 as BL (readFile)
 import Data.Aeson (object, (.=))
 import Network.Mime (MimeType, defaultMimeLookup)
+import Data.Maybe (fromJust)
 
 import Options.Applicative (Parser(..), execParser, strOption, option, auto,
                             long, short, help, value, (<*>), (<>), helper,
@@ -90,7 +91,8 @@ program opts =
       json $ object [ "result" .= code ]
 
     get "/api/publicId" $ do
-      fc <- liftIO getPublicId
+      sessionId <- TL.unpack . fromJust <$> header "X-Sandstorm-Session-Id"
+      fc <- liftIO $ getPublicId sessionId
       raw fc
 
 

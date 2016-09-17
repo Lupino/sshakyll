@@ -91,7 +91,7 @@ publish root = do
                                       providerDirectory = root </> "source" }
         path = root </> "source" </> "config.json"
 
-getPublicId :: IO LB.ByteString
-getPublicId = do
-  (_,Just hout,_,_) <- createProcess (proc "./getPublicId" []){ std_out = CreatePipe }
+getPublicId :: String -> IO LB.ByteString
+getPublicId sessionId = do
+  (_,Just hout,_,_) <- createProcess (proc "getPublicId" [sessionId]){ std_out = CreatePipe }
   LB.hGetContents hout
