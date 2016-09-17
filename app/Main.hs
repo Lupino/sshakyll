@@ -12,7 +12,7 @@ import Data.Streaming.Network.Internal (HostPreference(Host))
 import Network.Wai.Middleware.Static (staticPolicy, noDots, (>->), addBase)
 import Data.Default.Class (def)
 import Control.Monad.IO.Class (liftIO)
-import System.FilePath ((</>), dropDrive)
+import System.FilePath ((</>), dropDrive, dropFileName)
 import qualified Data.Text as T (pack, unpack)
 import qualified Data.Text.Lazy as TL (pack, unpack)
 import qualified Data.ByteString.Char8 as BC (unpack)
@@ -20,6 +20,7 @@ import qualified Data.ByteString.Lazy.Char8 as BL (readFile)
 import Data.Aeson (object, (.=))
 import Network.Mime (MimeType, defaultMimeLookup)
 import Data.Maybe (fromJust)
+import Codec.Archive.Zip (toArchive, ZipOption (..), extractFilesFromArchive)
 
 import Options.Applicative (Parser(..), execParser, strOption, option, auto,
                             long, short, help, value, (<*>), (<>), helper,
@@ -77,6 +78,13 @@ program opts =
       path <- filePath root
       wb <- body
       liftIO $ saveFile path wb
+
+      json $ object [ "result" .= T.pack "OK" ]
+
+    put (regex "^/api/archive/(.*)") $ do
+      path <- filePath root
+      wb <- body
+      liftIO $ extractFilesFromArchive [OptDestination (dropFileName path)] $ toArchive wb
 
       json $ object [ "result" .= T.pack "OK" ]
 
