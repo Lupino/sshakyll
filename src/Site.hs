@@ -15,6 +15,8 @@ import Data.Aeson (FromJSON(..), (.:), withObject, decodeStrict)
 import System.IO (readFile)
 import Data.ByteString.Char8 (pack)
 import System.Exit (ExitCode(ExitSuccess))
+import Data.Char (ord)
+import Numeric (showHex)
 
 data Post = Post { getPostRegex     :: String,
                    getPostTemplates :: [FilePath] }
@@ -144,8 +146,13 @@ postCtx =
     dateField "date" "%B %e, %Y" `mappend`
     defaultContext
 
+preParseUnicode :: String -> String
+preParseUnicode (x:xs) = if ord x > 255 then "\\u" ++ showHex (ord x) "" ++ preParseUnicode xs
+                         else x:preParseUnicode xs
+preParseUnicode [] = []
+
 readConfig :: FilePath -> IO (Maybe Config)
-readConfig fn = parseConfig <$> readFile fn
+readConfig fn = parseConfig . preParseUnicode <$> readFile fn
   where parseConfig str = decodeStrict $ pack str
 
 buildWithExitCode :: Configuration -> FilePath -> IO ExitCode
