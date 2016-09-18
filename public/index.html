@@ -468,7 +468,13 @@ $(function () {
 
 function showHowto() {
   doGet("/api/publicId").then(function (xhr) {
-    var info = JSON.parse(xhr.responseText);
+    var lines = xhr.responseText.split('\n');
+    var info = {
+      autoUrl: lines[2],
+      hostname: /https?:\/\/([^\/]+)/i.exec(lines[2])[1],
+      publicId: lines[0],
+      isDemoUser: lines[3] === 'true'
+    };
     var url = document.createElement("a");
     url.href = info.autoUrl;
     $("#howto-hostname").text(url.hostname);
