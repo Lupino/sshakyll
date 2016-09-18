@@ -1,0 +1,36 @@
+{
+    "pages": [
+        {
+            "pattern": "posts/*",
+            "templates": ["templates/post.html", "templates/default.html"]
+        },
+        {
+            "pattern": ["about.rst", "contact.markdown"],
+            "templates": ["templates/default.html"]
+        }
+    ],
+    "archives": [
+        {
+            "file": "archive.html",
+            "title": "Archives",
+            "fields": [
+                {
+                    "field": "posts",
+                    "pattern": "posts/*"
+                }
+            ],
+            "templates": ["templates/archive.html", "templates/default.html"]
+        },
+        {
+            "file": "index.html",
+            "title": "Home",
+            "fields": [
+                {
+                    "field": "posts",
+                    "pattern": "posts/*"
+                }
+            ],
+            "templates": ["templates/default.html"]
+        }
+    ]
+}
