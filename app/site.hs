@@ -3,8 +3,6 @@
 module Main where
 import Data.Monoid (mappend)
 import Hakyll
-import Hakyll.Commands (rebuild)
-import qualified Hakyll.Core.Logger as Logger
 import Data.String (fromString)
 import qualified Data.Text as T (unpack, Text)
 import Data.Aeson (FromJSON(..), (.:), withObject, decodeStrict, Value(..), Array)
