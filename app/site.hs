@@ -48,13 +48,24 @@ instance FromJSON Archive where
     let getArchiveExists = False
     return Archive{..}
 
+data Static = Static { getStaticPattern :: Value,
+                       getStaticType    :: String }
+
+instance FromJSON Static where
+  parseJSON = withObject "Static" $ \o -> do
+    getStaticPattern <- o .: "pattern"
+    getStaticType    <- o .: "type"
+    return Static{..}
+
 data Config = Config { getPageList    :: [Page],
-                       getArchiveList :: [Archive] }
+                       getArchiveList :: [Archive],
+                       getStaticList  :: [Static] }
 
 instance FromJSON Config where
   parseJSON = withObject "Config" $ \o -> do
     getPageList    <- o .: "pages"
     getArchiveList <- o .: "archives"
+    getStaticList  <- o .: "statics"
     return Config{..}
 
 valueToPattern :: Value -> Pattern
@@ -99,13 +110,25 @@ archiveToRules archive = rule $ do
         exists = getArchiveExists archive
         rule   = if exists then match (fromString file) else create [fromString file]
 
+staticToRules :: Static -> Rules ()
+staticToRules static = match pat $ do
+  route   idRoute
+  compiler t
+  where pat = valueToPattern $ getStaticPattern static
+        t = getStaticType static
+        compiler t | t == "css"      = compile compressCssCompiler
+                   | t == "template" = compile templateBodyCompiler
+                   | otherwise       = compile copyFileCompiler
+
 configToRules :: Config -> Rules ()
 configToRules config = do
   mapM_ pageToRules pages
   mapM_ archiveToRules archives
+  mapM_ staticToRules statics
 
-  where pages = getPageList config
+  where pages    = getPageList config
         archives = getArchiveList config
+        statics  = getStaticList config
 
 loadAndApplyTemplateList :: [Identifier]            -- ^ Template identifier
                          -> Context String          -- ^ Context
@@ -155,22 +178,7 @@ main :: IO ()
 main = do
   (Just config) <- readConfig path
   archives <- mapM (fillArchive source) $ getArchiveList config
-  hakyllWith conf $ do
-    match "images/*" $ do
-        route   idRoute
-        compile copyFileCompiler
-
-    match "js/*" $ do
-        route   idRoute
-        compile copyFileCompiler
-
-    match "css/*" $ do
-        route   idRoute
-        compile compressCssCompiler
-
-    configToRules config { getArchiveList = archives }
-
-    match "templates/*" $ compile templateBodyCompiler
+  hakyllWith conf $ configToRules config { getArchiveList = archives }
 
   where root = "var"
         source = root </> "source"

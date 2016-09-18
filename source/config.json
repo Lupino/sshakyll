@@ -1,4 +1,22 @@
 {
+    "statics": [
+        {
+            "pattern": "css/*",
+            "type": "css"
+        },
+        {
+            "pattern": "js/*",
+            "type": "static"
+        },
+        {
+            "pattern": "images/*",
+            "type": "static"
+        },
+        {
+            "pattern": "templates/*",
+            "type": "template"
+        }
+    ],
     "pages": [
         {
             "pattern": "posts/*",
