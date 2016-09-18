@@ -48,6 +48,7 @@ executable sshakyll
                      , bytestring
                      , optparse-applicative
                      , zip-archive
+                     , directory
   default-language:    Haskell2010
 
 executable site

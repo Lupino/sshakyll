@@ -21,6 +21,7 @@ import Data.Aeson (object, (.=))
 import Network.Mime (MimeType, defaultMimeLookup)
 import Data.Maybe (fromJust)
 import Codec.Archive.Zip (toArchive, ZipOption (..), extractFilesFromArchive)
+import System.Directory (doesFileExist)
 
 import Options.Applicative (Parser(..), execParser, strOption, option, auto,
                             long, short, help, value, (<*>), (<>), helper,
@@ -61,7 +62,10 @@ program opts =
     middleware staticMid
     middleware staticMid'
 
-    get "/" $ redirect "/index.html"
+    get "/" $ do
+      hasEditor <- liftIO $ doesFileExist editor
+      if hasEditor then redirect "/editor/index.html"
+      else redirect "/index.html"
 
     get "/api/file" $ do
       trees <- liftIO $ getFileTreeList $ root </> "source"
@@ -108,6 +112,7 @@ program opts =
         port = getPort opts
         host = getHost opts
         root = getRoot opts
+        editor = root </> "source" </> "editor" </> "index.html"
         serverOpts = def { settings = setPort port $ setHost (Host host) (settings def) }
 
 filePath :: FilePath -> ActionM FilePath
