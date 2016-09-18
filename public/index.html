@@ -443,23 +443,38 @@ function initTree() {
   doGet("/api/file").then(function (xhr) {
     var data = JSON.parse(xhr.responseText);
     $("#tree").on("activate_node.jstree", function (e, data) {
-      if (!data.node.original.isDir && isTextFile(data.node.original.serverPath)) {
+      if (!data.node.original.isDir) {
         var serverPath = data.node.original.serverPath;
-        catchErrors(saveCurrent().then(function () {
-          return doGet("/api/file" + serverPath);
-        }).then(function (xhr) {
-          currentPath = serverPath;
-          if (!editorInitialized) initEditor();
-          editor.removeAllListeners("change");
-          editor.setValue(xhr.responseText, -1);
-          editor.on("change", unsaved);
-          editor.on("change", update);
-          setEditorMode(xhr.getResponseHeader("content-type"), serverPath);
-          setTimeout(update, 100);
-        }));
+        if (isTextFile(serverPath)) {
+          catchErrors(saveCurrent().then(function () {
+            return doGet("/api/file" + serverPath);
+          }).then(function (xhr) {
+            currentPath = serverPath;
+            if (!editorInitialized) initEditor();
+            editor.removeAllListeners("change");
+            editor.setValue(xhr.responseText, -1);
+            editor.on("change", unsaved);
+            editor.on("change", update);
+            setEditorMode(xhr.getResponseHeader("content-type"), serverPath);
+            setTimeout(update, 100);
+          }));
+        } else if (isImageFile(serverPath)) {
+            setEditorCustomData("![Image Title](" + serverPath + ")");
+        } else {
+            setEditorCustomData("[File Title](" + serverPath + ")");
+        }
       }
     }).jstree({core: {data: filesToTree("", data)}});
   });
+}
+
+function setEditorCustomData(data) {
+  if (!editorInitialized) initEditor();
+  editor.removeAllListeners("change");
+  editor.on("change", update);
+  editor.setValue(data, -1);
+  setEditorMode("", "test.md");
+  setTimeout(update, 100);
 }
 
 $(function () {
@@ -546,7 +561,14 @@ function setOutput(val){
 }
 
 function isTextFile(fn) {
-  if (/\.(json|js|html|markdown|md|rst|css|htm|xml|svg|txt)$/i.exec(fn)) {
+  if (/\.(json|js|html|markdown|md|rst|css|htm|xml|txt)$/i.exec(fn)) {
+    return true;
+  }
+  return false;
+}
+
+function isImageFile(fn) {
+  if (/\.(jpg|jpeg|gif|png|svg|bmp|tiff)/i.exec(fn)) {
     return true;
   }
   return false;
