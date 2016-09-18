@@ -154,7 +154,7 @@ readConfig fn = parseConfig . preParseUnicode <$> readFile fn
 main :: IO ()
 main = do
   (Just config) <- readConfig path
-  archives <- mapM (fillArchive root) $ getArchiveList config
+  archives <- mapM (fillArchive source) $ getArchiveList config
   hakyllWith conf $ do
     match "images/*" $ do
         route   idRoute
@@ -173,6 +173,7 @@ main = do
     match "templates/*" $ compile templateBodyCompiler
 
   where root = "var"
+        source = root </> "source"
         conf = defaultConfiguration { destinationDirectory = root </> "www",
                                       storeDirectory = root </> "_cache",
                                       tmpDirectory = root </> "_cache/tmp",
