@@ -45,7 +45,7 @@ parser = Options <$> strOption (long "host"
                                 <> short 'd'
                                 <> metavar "DIR"
                                 <> help "Site root dirctory."
-                                <> value "site" )
+                                <> value "var" )
 
 main :: IO ()
 main = execParser opts >>= program
@@ -94,8 +94,8 @@ program opts =
       json $ object [ "result" .= T.pack "OK" ]
 
     post "/api/publish" $ do
-      code <- liftIO $ publish root
-      json $ object [ "result" .= code ]
+      fc <- liftIO publish
+      raw fc
 
     get "/api/publicId" $ do
       sessionId <- TL.unpack . fromJust <$> header "X-Sandstorm-Session-Id"

@@ -1,11 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-
-module Site
-  (
-    buildWithExitCode
-  ) where
-
+module Main where
 import Data.Monoid (mappend)
 import Hakyll
 import Hakyll.Commands (rebuild)
@@ -158,12 +153,11 @@ readConfig :: FilePath -> IO (Maybe Config)
 readConfig fn = parseConfig . preParseUnicode <$> readFile fn
   where parseConfig str = decodeStrict $ pack str
 
-buildWithExitCode :: Configuration -> FilePath -> IO ExitCode
-buildWithExitCode conf fn = do
-  (Just config) <- readConfig fn
+main :: IO ()
+main = do
+  (Just config) <- readConfig path
   archives <- mapM (fillArchive root) $ getArchiveList config
-  logger <- Logger.new Logger.Error
-  rebuild  conf logger $ do
+  hakyllWith conf $ do
     match "images/*" $ do
         route   idRoute
         compile copyFileCompiler
@@ -180,4 +174,9 @@ buildWithExitCode conf fn = do
 
     match "templates/*" $ compile templateBodyCompiler
 
-  where root = providerDirectory conf
+  where root = "var"
+        conf = defaultConfiguration { destinationDirectory = root </> "www",
+                                      storeDirectory = root </> "_cache",
+                                      tmpDirectory = root </> "_cache/tmp",
+                                      providerDirectory = root </> "source" }
+        path = root </> "source" </> "config.json"

@@ -24,10 +24,6 @@ import qualified Data.ByteString.Lazy as LB (ByteString, writeFile, hGetContents
 import qualified Data.Text as T (pack)
 import System.Process (createProcess, StdStream(..), proc, std_out)
 
-import Site
-import Hakyll (Configuration(..), defaultConfiguration)
-
-
 data FileTree = Directory String [FileTree] | FileName String Int
   deriving (Show)
 
@@ -80,16 +76,10 @@ deleteFile fn = do
   fileExists <- doesFileExist fn
   when fileExists $ removeFile fn
 
-publish :: FilePath -> IO ()
-publish root = do
-  buildWithExitCode conf path
-  return ()
-
-  where conf = defaultConfiguration { destinationDirectory = root </> "www",
-                                      storeDirectory = root </> "_cache",
-                                      tmpDirectory = root </> "_cache/tmp",
-                                      providerDirectory = root </> "source" }
-        path = root </> "source" </> "config.json"
+publish :: IO LB.ByteString
+publish = do
+  (_,Just hout,_,_) <- createProcess (proc "site" ["rebuild"]){ std_out = CreatePipe }
+  LB.hGetContents hout
 
 getPublicId :: String -> IO LB.ByteString
 getPublicId sessionId = do
