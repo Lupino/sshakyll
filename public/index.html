@@ -537,14 +537,18 @@ var md = markdownit({
 function update(e){
   var mode = editor.getSession().getMode().$id;
   if (/markdown|xml|html|text/i.exec(mode)) {
-    setOutput(editor.getValue());
+    setOutput(editor.getValue(), mode);
   }
 }
 
-function setOutput(val){
+function setOutput(val, mode){
   var out = document.getElementById('out');
   var old = out.cloneNode(true);
-  out.innerHTML = md.render(val);
+  if (/markdown/i.exec(mode)) {
+    out.innerHTML = md.render(val);
+  } else {
+    out.innerHTML = val;
+  }
 
   var allold = old.getElementsByTagName("*");
   if (allold === undefined) return;
