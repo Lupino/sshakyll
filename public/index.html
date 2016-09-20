@@ -30,7 +30,7 @@
       overflow: hidden;
     }
 
-    #in{
+    #in {
       position: absolute;
       top: 0;
       left: 0;
@@ -46,7 +46,12 @@
       background-color: #ebebeb;
     }
 
-    #out{
+    #in.no-preview {
+        width: 100%;
+        right: 10px;
+    }
+
+    #out {
       position: absolute;
       top: 0;
       right: 0;
@@ -63,11 +68,11 @@
 
     @media screen and (max-width: 1024px) {
       #in {
-        display: none;
+        width: 100%;
+        right: 10px;
       }
       #out {
-        left: 0;
-        padding-left: 10px;
+        display: none;
       }
     }
 
@@ -212,6 +217,8 @@
     <button id="upload" onclick="uploadFile()">Upload</button>
     <button id="uploadArchive" onclick="uploadFile(true)">Upload Archive</button><br>
     <button id="showHowto" onclick="showHowto()">Setup DNS</button>
+    <button id="showPreview" onclick="showPreview()">Preview</button>
+    <button id="hidePreview" onclick="hidePreview()">Hide Preview</button>
     <span id="save-error"></span>
   </div>
   <div id="tree"></div>
@@ -466,6 +473,33 @@ function hideHowto() {
   $("#howto").removeClass("shown");
 }
 
+var preview = false;
+var canPreview = false;
+function showPreview() {
+  preview = true;
+  $("#out").show();
+  $("#in").removeClass("no-preview");
+  $("#hidePreview").show();
+  $("#showPreview").hide();
+  editor.resize()
+}
+
+function hidePreview() {
+  preview = false;
+  $("#out").hide();
+  $("#in").addClass("no-preview");
+  $("#hidePreview").hide();
+  $("#showPreview").show();
+  editor.resize()
+}
+
+function hidePreviewButton () {
+  $("#hidePreview").hide();
+  $("#showPreview").hide();
+}
+
+hidePreviewButton();
+
 // Because highlight.js is a bit awkward at times
 var languageOverrides = {
   js: 'javascript',
@@ -490,7 +524,17 @@ var md = markdownit({
 function update(e){
   var mode = editor.getSession().getMode().$id;
   if (/markdown|xml|html|text/i.exec(mode)) {
+    if (!canPreview) {
+      canPreview = true;
+      showPreview();
+    }
     setOutput(editor.getValue(), mode);
+  } else {
+    if (canPreview) {
+      canPreview = false;
+      hidePreview();
+      hidePreviewButton();
+    }
   }
 }
 
@@ -563,7 +607,7 @@ function setEditorMode(mimeType, fileName) {
 }
 
 function initEditor() {
-  $("#editor").removeClass("uninitialized");
+  $("#in").removeClass("uninitialized");
   editor = ace.edit("in");
   editor.setTheme("ace/theme/chrome");
   editorInitialized = true;
