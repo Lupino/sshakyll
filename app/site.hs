@@ -174,16 +174,29 @@ readConfig :: FilePath -> IO (Maybe Config)
 readConfig fn = parseConfig . preParseUnicode <$> readFile fn
   where parseConfig str = decodeStrict $ pack str
 
+isRoot :: FilePath -> IO Bool
+isRoot root = doesFileExist fn
+  where fn = root </> "source" </> "config.json"
+
+guessRoot :: [FilePath] -> IO FilePath
+guessRoot (x:xs) = do
+  isr <- isRoot x
+  if isr then return x
+  else guessRoot xs
+
+guessRoot [] = error "site not found."
+
 main :: IO ()
 main = do
+  root <- guessRoot [".", "site", "var", "/var", "/var/site"]
+  let
+      source = root </> "source"
+      conf = defaultConfiguration { destinationDirectory = root </> "www",
+                                    storeDirectory = root </> "_cache",
+                                    tmpDirectory = root </> "_cache/tmp",
+                                    providerDirectory = root </> "source" }
+      path = root </> "source" </> "config.json"
+
   (Just config) <- readConfig path
   archives <- mapM (fillArchive source) $ getArchiveList config
   hakyllWith conf $ configToRules config { getArchiveList = archives }
-
-  where root = "var"
-        source = root </> "source"
-        conf = defaultConfiguration { destinationDirectory = root </> "www",
-                                      storeDirectory = root </> "_cache",
-                                      tmpDirectory = root </> "_cache/tmp",
-                                      providerDirectory = root </> "source" }
-        path = root </> "source" </> "config.json"
