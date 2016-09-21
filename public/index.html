@@ -522,7 +522,7 @@ var md = markdownit({
 
 function update(e){
   var mode = editor.getSession().getMode().$id;
-  if (/markdown|xml|html|text/i.exec(mode)) {
+  if (/markdown|xml|html|text/i.exec(mode) && !/^\/editor/i.exec(currentPath)) {
     if (!canPreview) {
       canPreview = true;
       showPreview();
