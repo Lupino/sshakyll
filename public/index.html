@@ -225,6 +225,7 @@
     <button id="showPreview" onclick="showPreview()">Preview</button>
     <button id="hidePreview" onclick="hidePreview()">Hide Preview</button>
     <span id="save-error"></span>
+    <div id="currentDirectory"></div>
   </div>
   <div id="tree"></div>
 </div>
@@ -280,6 +281,7 @@ function unsaved() {
 }
 
 var currentPath;
+var currentDirectory = "";
 function saveCurrent() {
   $("#save-error").text();
   if (currentPath && saveState === "unsaved") {
@@ -305,12 +307,7 @@ function newDoc() {
   saveCurrent().then(function () {
     var filename = window.prompt("Enter file name.");
     if (filename) {
-      var selected = $("#tree").jstree(true).get_selected(true)[0];
-      var path = "";
-      if (selected && selected.original.isDir) {
-        path = selected.original.serverPath;
-      }
-      path = path + "/" + filename;
+      path = currentDirectory + "/" + filename;
 
       if (!isTextFile(path)) {
         path = path + '.md';
@@ -336,16 +333,9 @@ function uploadFile(isArchive) {
   var form = $('<form><input type="file" name="test"></form>', { css: { 'display': 'none' }});
   var input = $(form.children()[0]);
 
-  var selected = $("#tree").jstree(true).get_selected(true)[0];
-  var path = "";
-
-  if (selected && selected.original.isDir) {
-    path = selected.original.serverPath;
-  }
-
   input.on('change', function(e) {
     $.each(this.files, function(key, file) {
-      var filePath = path + "/" + file.name;
+      var filePath = currentDirectory + "/" + file.name;
       catchErrors(doPut(api + filePath, file).then(function (response) {
         $("#tree").jstree(true).destroy();
         $("#tree").empty();
@@ -370,6 +360,9 @@ function deleteDoc() {
     doDelete("/api/file" + path).then(function (response) {
       $("#tree").jstree(true).destroy();
       $("#tree").empty();
+      if (selected.original.isDir) {
+        currentDirectory = path.substr(0, path.lastIndexOf('/'));
+      }
       initTree();
     }).catch(function(err) {
       window.alert('Delete directory failed. because it is not empty.');
@@ -404,11 +397,14 @@ function filesToTree(parent, files) {
 }
 
 function initTree() {
+  $("#currentDirectory").html(currentDirectory);
   doGet("/api/file").then(function (xhr) {
     var data = JSON.parse(xhr.responseText);
     $("#tree").on("activate_node.jstree", function (e, data) {
       if (!data.node.original.isDir) {
         var serverPath = data.node.original.serverPath;
+        currentDirectory = serverPath.substr(0, serverPath.lastIndexOf('/'));
+
         if (isTextFile(serverPath)) {
           catchErrors(saveCurrent().then(function () {
             return doGet("/api/file" + serverPath);
@@ -427,7 +423,10 @@ function initTree() {
         } else {
             setEditorCustomData("[File Title](" + serverPath + ")");
         }
+      } else {
+        currentDirectory = data.node.original.serverPath;
       }
+      $("#currentDirectory").html(data.node.original.serverPath);
     }).jstree({core: {data: filesToTree("", data)}});
   });
 }
