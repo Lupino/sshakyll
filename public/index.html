@@ -63,7 +63,8 @@
       color: #444;
       font-family:Georgia, Palatino, 'Palatino Linotype', Times, 'Times New Roman', serif;
       font-size: 16px;
-      line-height: 1.5em
+      line-height: 1.5em;
+      display: none;
     }
 
     @media screen and (max-width: 1024px) {
@@ -204,6 +205,10 @@
     #howto.shown {
       display: block;
     }
+
+    #showPreview, #hidePreview {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -225,7 +230,7 @@
 </div>
 
 <div id="editor">
-  <div id="in" class="uninitialized"></div>
+  <div id="in" class="uninitialized no-preview"></div>
   <div id="out"></div>
 </div>
 
@@ -472,7 +477,7 @@ function hideHowto() {
   $("#howto").removeClass("shown");
 }
 
-var preview = false;
+var preview = true;
 var canPreview = false;
 function showPreview() {
   preview = true;
@@ -492,12 +497,22 @@ function hidePreview() {
   editor.resize()
 }
 
-function hidePreviewButton () {
+function disablePreview() {
+  canPreview = false;
   $("#hidePreview").hide();
   $("#showPreview").hide();
+  $("#out").hide();
+  $("#in").addClass("no-preview");
 }
 
-hidePreviewButton();
+function enablePreview() {
+  canPreview = true;
+  if (preview) {
+    showPreview();
+  } else {
+    hidePreview();
+  }
+}
 
 // Because highlight.js is a bit awkward at times
 var languageOverrides = {
@@ -524,15 +539,12 @@ function update(e){
   var mode = editor.getSession().getMode().$id;
   if (/markdown|xml|html|text/i.exec(mode) && !/^\/editor/i.exec(currentPath)) {
     if (!canPreview) {
-      canPreview = true;
-      showPreview();
+      enablePreview();
     }
     setOutput(editor.getValue(), mode);
   } else {
     if (canPreview) {
-      canPreview = false;
-      hidePreview();
-      hidePreviewButton();
+      disablePreview();
     }
   }
 }
