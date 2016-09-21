@@ -403,6 +403,7 @@ function initTree() {
     $("#tree").on("activate_node.jstree", function (e, data) {
       if (!data.node.original.isDir) {
         var serverPath = data.node.original.serverPath;
+        var fileName = data.node.original.text;
         currentDirectory = serverPath.substr(0, serverPath.lastIndexOf('/'));
 
         if (isTextFile(serverPath)) {
@@ -419,9 +420,9 @@ function initTree() {
             setTimeout(update, 100);
           }));
         } else if (isImageFile(serverPath)) {
-            setEditorCustomData("![Image Title](" + serverPath + ")");
+            setEditorCustomData("![" + fileName + "](" + serverPath + ")");
         } else {
-            setEditorCustomData("[File Title](" + serverPath + ")");
+            setEditorCustomData("[" + fileName + "](" + serverPath + ")");
         }
       } else {
         currentDirectory = data.node.original.serverPath;
