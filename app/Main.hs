@@ -46,7 +46,7 @@ parser = Options <$> strOption (long "host"
                                 <> short 'd'
                                 <> metavar "DIR"
                                 <> help "Site root dirctory."
-                                <> value "var" )
+                                <> value "" )
 
 main :: IO ()
 main = execParser opts >>= program
