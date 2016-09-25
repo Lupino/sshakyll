@@ -9,10 +9,11 @@ module File
   ) where
 
 import Prelude hiding (concat)
-import Data.Text (fromString, Text, pack, concat)
+import Data.Text (fromString, Text, pack, concat, (<>))
 import DOM (XMLHttpRequest, responseText, status)
 import FilePath ((</>), FilePath)
 import HTTP (get, put, delete)
+import FFI (ffi)
 
 fromAction :: (Either Text Text -> Fay ()) -> XMLHttpRequest -> Fay ()
 fromAction act = handler
@@ -25,13 +26,18 @@ fromAction act = handler
           else
             act (Right rt)
 
+timeSuffix :: Fay Text
+timeSuffix = ffi "(function() {return '?t=' + Math.floor(new Date() / 1000 )})()"
+
 saveFile :: FilePath -> Text -> (Either Text Text -> Fay ()) -> Fay ()
 saveFile fn body act = put url body handler
   where handler = fromAction act
         url = "/api/file" </> fn
 
 readFile :: FilePath -> (Either Text Text -> Fay ()) -> Fay ()
-readFile fn act = get url handler
+readFile fn act = do
+  t <- timeSuffix
+  get (url <> t) handler
   where handler = fromAction act
         url = "/api/file" </> fn
 
