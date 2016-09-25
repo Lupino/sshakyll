@@ -247,7 +247,7 @@ setHtml = ffi "(function(text, elem) { elem.innerHTML = text; return elem; })(%1
 
 showCurrentPath :: FilePath -> Fay ()
 showCurrentPath path = do
-  getElementById "currentDirectory" >>= setHtml path
+  getElementById "currentPath" >>= setHtml path
   return ()
 
 treeNodeAction :: TreeNode -> Fay ()
@@ -297,6 +297,9 @@ loadPublicIdAndShow :: Fay ()
 loadPublicIdAndShow = get "/api/publicId" action
   where action :: XMLHttpRequest -> Fay ()
         action xhr = responseText xhr >>= showHowto
+
+hideHowto :: Fay ()
+hideHowto = ffi "hideHowto()"
 
 setCanPreview :: Bool -> Fay ()
 setCanPreview = ffi "(function(can) { window.canPreview = can; })(%1)"
@@ -391,6 +394,8 @@ main = do
       >>= addEventListener "click" (uploadFile True)
   getElementById "showHowto"
       >>= addEventListener "click" (const loadPublicIdAndShow)
+  getElementById "hideHowto"
+      >>= addEventListener "click" (const hideHowto)
   getElementById "showPreview"
       >>= addEventListener "click" (const showPreview)
   getElementById "hidePreview"
