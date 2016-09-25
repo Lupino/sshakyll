@@ -18,9 +18,6 @@ appendPath = ffi "(function(f, g) { p = f + '/' + g; return p.replace(/\\/+/g, '
 f </> g = appendPath f g
 infixr 5 </>
 
-takeFileName :: FilePath -> FilePath
-takeFileName = ffi "(function(fn) { return fn.substr(fn.lastIndexOf('/') + 1) })(%1)"
-
 dropFileName :: FilePath -> FilePath
 dropFileName = ffi "(function(fn) { return fn.substr(0, fn.lastIndexOf('/')) })(%1)"
 
@@ -38,7 +35,7 @@ fetchOptions = FetchOptions { getUrl     = "",
                               getResolve = const $ return (),
                               getReject  = const $ return () }
 
-data RequestMethod = GET | POST | PUT | HEAD | DELETE
+data RequestMethod = GET | POST | PUT | DELETE
 
 open :: RequestMethod -> Text -> XMLHttpRequest -> Fay XMLHttpRequest
 open = ffi "(function(method, url, xhr) { xhr['open'](method['instance'], url, true); return xhr; })(%1, %2, %3)"
@@ -133,6 +130,7 @@ setTimer = ffi "(function (t) { window.saveTimeout = t; })(%1)"
 getTimer :: Fay Timer
 getTimer = ffi "window.saveTimeout"
 
+saveBtn :: Fay Element
 saveBtn = getElementById "save"
 
 setProp :: Text -> Text -> Element -> Fay Element
@@ -180,6 +178,7 @@ getCurrentDirectory = ffi "window.currentDirectory"
 setCurrentDirectory :: FilePath -> Fay ()
 setCurrentDirectory = ffi "(function(p){window.currentDirectory = p })(%1)"
 
+saveErrorElem :: Fay Element
 saveErrorElem = getElementById "save-error"
 
 isUnsave :: SaveState -> Bool
@@ -202,7 +201,11 @@ saveCurrent = do
     saving
     editor <- getEditor
     dat <- getEditorValue editor
-    put ("/api/file" </> currentPath) dat (const saved)
+    saveFile currentPath dat $ toAction act
+
+  where act :: Maybe Text -> Maybe Text -> Fay ()
+        act (Just _) Nothing = unsaved
+        act Nothing (Just _) = saved
 
 prompt :: Text -> Fay Text
 prompt = ffi "window.prompt(%1)"
@@ -228,7 +231,7 @@ deleteDoc _ = do
     when c $ deleteFile currentPath $ toAction resolve
   where resolve :: Maybe Text -> Maybe Text -> Fay ()
         resolve (Just err) Nothing = T.putStrLn err
-        resolve Nothing (Just body) = updateTree
+        resolve Nothing (Just _) = updateTree
 
 callback :: XMLHttpRequest -> Fay ()
 callback xhr = responseText xhr >>= T.putStrLn
@@ -269,13 +272,6 @@ parseArticle txt = parse $ T.lines txt
 renderMarkdown :: T.Text -> T.Text
 renderMarkdown = ffi "window.md.render(%1)"
 
-printFile :: Maybe T.Text -> Maybe T.Text -> Fay ()
-printFile (Just err) Nothing = error $ T.unpack err
-printFile Nothing (Just body) = do
-  T.putStrLn $ getTitle art
-  T.putStrLn . renderMarkdown $ getContent art
-  where art = parseArticle body
-
 confirm :: T.Text -> Fay Bool
 confirm = ffi "window.confirm(%1)"
 
@@ -309,12 +305,6 @@ loadTree act = get "/api/file" resolve
 
 setOutput :: T.Text -> Fay ()
 setOutput = ffi "setOutput(%1)"
-
-printTreeNode :: TreeNode -> Fay ()
-printTreeNode tn = do
-  when (isDir tn) $ T.putStrLn "isDir"
-  T.putStrLn $ serverPath tn
-  T.putStrLn $ text tn
 
 data Editor
 
@@ -353,12 +343,6 @@ readFileAction fn Nothing (Just body) = do
            >>= setEditorMode fn
   setTimeout 100 $ const (updatePreview fn)
   return ()
-
-printEditorValue :: Event -> Fay ()
-printEditorValue _ = do
-  editor <- getEditor
-  body <- getEditorValue editor
-  T.putStrLn body
 
 setHtml :: Text -> Element -> Fay Element
 setHtml = ffi "(function(text, elem) { elem.innerHTML = text; return elem; })(%1, %2)"
