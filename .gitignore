@@ -1,2 +1,6 @@
 .stack-work
-public/file
+public/editor.js
+_cache
+www
+bin
+tmp
