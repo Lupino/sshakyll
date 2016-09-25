@@ -3,118 +3,16 @@
 
 module Main (main) where
 
-import Prelude
-import FFI (ffi, Defined(..))
-import DOM hiding (RequestMethod(..), open)
-import Data.Text (fromString, Text)
-import qualified Data.Text as T
+import Prelude hiding (null, concat, putStrLn, lines, unlines)
+import FFI (ffi)
+import DOM (getElementById, addClass, removeClass, Event, Element, Timer,
+            XMLHttpRequest, setTimeout, clearTimeout, responseText)
+import Data.Text (fromString, Text, null, concat, putStrLn, unpack,
+                  splitOn, lines, unlines, isPrefixOf, (<>))
+import FilePath ((</>), dropFileName, FilePath)
+import HTTP (get, put, post)
+import File (readFile, saveFile, deleteFile)
 
-type FilePath = Text
-
-appendPath :: FilePath -> FilePath -> FilePath
-appendPath = ffi "(function(f, g) { p = f + '/' + g; return p.replace(/\\/+/g, '/') })(%1, %2)"
-
-(</>) :: FilePath -> FilePath -> FilePath
-f </> g = appendPath f g
-infixr 5 </>
-
-dropFileName :: FilePath -> FilePath
-dropFileName = ffi "(function(fn) { return fn.substr(0, fn.lastIndexOf('/')) })(%1)"
-
-data FetchOptions = FetchOptions { getUrl     :: T.Text,
-                                   getMethod  :: RequestMethod,
-                                   getData    :: Defined T.Text,
-                                   getResolve :: XMLHttpRequest -> Fay (),
-                                   getReject  :: T.Text -> Fay () }
-
-
-fetchOptions :: FetchOptions
-fetchOptions = FetchOptions { getUrl     = "",
-                              getMethod  = GET,
-                              getData    = Undefined,
-                              getResolve = const $ return (),
-                              getReject  = const $ return () }
-
-data RequestMethod = GET | POST | PUT | DELETE
-
-open :: RequestMethod -> Text -> XMLHttpRequest -> Fay XMLHttpRequest
-open = ffi "(function(method, url, xhr) { xhr['open'](method['instance'], url, true); return xhr; })(%1, %2, %3)"
-
-send_ :: T.Text -> XMLHttpRequest -> Fay ()
-send_ = ffi "%2['send'](%1)"
-
-setOnLoadHandler :: (XMLHttpRequest -> Fay ()) -> XMLHttpRequest -> Fay XMLHttpRequest
-setOnLoadHandler = ffi "(function(handler, xhr) { xhr['onload'] = function() { handler(xhr); }; return xhr; })(%1, %2)"
-
-setOnErrorHandler :: (T.Text -> Fay ()) -> XMLHttpRequest -> Fay XMLHttpRequest
-setOnErrorHandler = ffi "(function(handler, xhr) { xhr['onerror'] = function(e) { handler(e.toString()); }; return xhr; })(%1, %2)"
-
-fetch_ :: FetchOptions -> Fay ()
-fetch_ opts = xmlHttpRequest
-  >>= open method url
-  >>= setOnLoadHandler resolve
-  >>= setOnErrorHandler reject
-  >>= sendData dat
-
-  where method = getMethod opts
-        url = getUrl opts
-        dat = getData opts
-        resolve = getResolve opts
-        reject  = getReject opts
-        sendData :: Defined T.Text -> XMLHttpRequest -> Fay ()
-        sendData (Defined dt) = send_ dt
-        sendData Undefined = send
-
-
-fetch :: T.Text -> FetchOptions -> (XMLHttpRequest -> Fay ()) -> Fay ()
-fetch url opts cb = fetch_ $ opts { getUrl = url, getResolve = cb }
-
-get :: T.Text -> (XMLHttpRequest -> Fay ()) -> Fay ()
-get ur = fetch ur fetchOptions
-
-post :: T.Text -> T.Text -> (XMLHttpRequest -> Fay ()) -> Fay ()
-post ur dat = fetch ur opts
-  where opts = fetchOptions { getData = Defined dat, getMethod = POST }
-
-put :: T.Text -> T.Text -> (XMLHttpRequest -> Fay ()) -> Fay ()
-put ur dat = fetch ur opts
-  where opts = fetchOptions { getData = Defined dat, getMethod = PUT }
-
-delete :: T.Text -> (XMLHttpRequest -> Fay ()) -> Fay ()
-delete ur = fetch ur fetchOptions { getMethod = DELETE }
-
--- getAction error body
-data ActionT = ActionT { getAction :: Maybe T.Text -> Maybe T.Text -> Fay () }
-
-fromAction :: ActionT -> XMLHttpRequest -> Fay ()
-fromAction act = handler
-  where act' = getAction act
-        handler :: XMLHttpRequest -> Fay ()
-        handler xhr = do
-          st <- status xhr
-          rt <- responseText xhr
-          if st >= 400 then
-            act' (Just (T.concat ["XHR returned status ", T.pack (show st), ":\n", rt])) Nothing
-          else
-            act' Nothing (Just rt)
-
-toAction :: (Maybe T.Text -> Maybe T.Text -> Fay ()) -> ActionT
-toAction act = ActionT { getAction = act }
-
-saveFile :: FilePath -> T.Text -> ActionT -> Fay ()
-saveFile fn body act = put url body handler
-  where handler = fromAction act
-        url = "/api/file" </> fn
-
-readFile :: FilePath -> ActionT -> Fay ()
-readFile fn act = get url handler
-  where handler = fromAction act
-        url = "/api/file" </> fn
-
-deleteFile :: FilePath -> ActionT -> Fay ()
-deleteFile fn act = delete ur handler
-  where handler = fromAction act
-        ur = "/api/file" </> fn
 
 data SaveState = Saved | Saving | Unsave
 
@@ -197,15 +95,15 @@ saveCurrent = do
   currentPath <- getCurrentPath
   saveState <- getSaveState
 
-  when (Prelude.not (T.null currentPath) && isUnsave saveState && isTextFile currentPath) $ do
+  when (Prelude.not (null currentPath) && isUnsave saveState && isTextFile currentPath) $ do
     saving
     editor <- getEditor
     dat <- getEditorValue editor
-    saveFile currentPath dat $ toAction act
+    saveFile currentPath dat act
 
-  where act :: Maybe Text -> Maybe Text -> Fay ()
-        act (Just _) Nothing = unsaved
-        act Nothing (Just _) = saved
+  where act :: Either Text Text -> Fay ()
+        act (Left _) = unsaved
+        act (Right _) = saved
 
 prompt :: Text -> Fay Text
 prompt = ffi "window.prompt(%1)"
@@ -221,61 +119,61 @@ newDoc _ = do
   put ("/api/file" </> fixed path (isTextFile fn)) "\n" (const updateTree)
 
   where fixed fn True  = fn
-        fixed fn False = fn T.<> ".md"
+        fixed fn False = fn <> ".md"
 
 deleteDoc :: Event -> Fay ()
 deleteDoc _ = do
   currentPath <- getCurrentPath
-  unless (T.null currentPath) $ do
-    c <- confirm ("Delete " T.<> currentPath T.<> " ?")
-    when c $ deleteFile currentPath $ toAction resolve
-  where resolve :: Maybe Text -> Maybe Text -> Fay ()
-        resolve (Just err) Nothing = T.putStrLn err
-        resolve Nothing (Just _) = updateTree
+  unless (null currentPath) $ do
+    c <- confirm ("Delete " <> currentPath <> " ?")
+    when c $ deleteFile currentPath act
+  where act :: Either Text Text -> Fay ()
+        act (Left err) = putStrLn err
+        act (Right _) = updateTree
 
 callback :: XMLHttpRequest -> Fay ()
-callback xhr = responseText xhr >>= T.putStrLn
+callback xhr = responseText xhr >>= putStrLn
 
-data Article = Article { getTitle :: T.Text, getContent :: T.Text }
+data Article = Article { getTitle :: Text, getContent :: Text }
 
-trim :: T.Text -> T.Text
+trim :: Text -> Text
 trim = ffi "%1.trim()"
 
-parseArticle :: T.Text -> Article
-parseArticle txt = parse $ T.lines txt
-  where parse :: [T.Text] -> Article
+parseArticle :: Text -> Article
+parseArticle txt = parse $ lines txt
+  where parse :: [Text] -> Article
         parse xs | hasTagLine xs = parse_ xs
-                 | otherwise     = Article { getTitle = "", getContent = T.concat xs }
+                 | otherwise     = Article { getTitle = "", getContent = concat xs }
 
-        hasTagLine :: [T.Text] -> Bool
+        hasTagLine :: [Text] -> Bool
         hasTagLine = foldr ((||) . isTagLine) False
 
-        isTagLine :: T.Text -> Bool
+        isTagLine :: Text -> Bool
         isTagLine x = trim x == "---"
 
-        isTitleLine :: T.Text -> Bool
-        isTitleLine x = "title" `T.isPrefixOf` x'
+        isTitleLine :: Text -> Bool
+        isTitleLine x = "title" `isPrefixOf` x'
           where x' = trim x
 
-        parse_ :: [T.Text] -> Article
+        parse_ :: [Text] -> Article
         parse_ (x:xs) = if isTitleLine x then
                           Article { getTitle = trim $ getT x, getContent = getC xs }
                         else parse_ xs
         parse_ []     = Article { getTitle = "", getContent = "" }
 
-        getT :: T.Text -> T.Text
-        getT = last . T.splitOn ':'
-        getC :: [T.Text] -> T.Text
-        getC (x:xs) = if isTagLine x then T.unlines xs
+        getT :: Text -> Text
+        getT = last . splitOn ':'
+        getC :: [Text] -> Text
+        getC (x:xs) = if isTagLine x then unlines xs
                       else getC xs
 
-renderMarkdown :: T.Text -> T.Text
+renderMarkdown :: Text -> Text
 renderMarkdown = ffi "window.md.render(%1)"
 
-confirm :: T.Text -> Fay Bool
+confirm :: Text -> Fay Bool
 confirm = ffi "window.confirm(%1)"
 
-addEventListener :: T.Text -> (Event -> Fay a) -> Element ->  Fay ()
+addEventListener :: Text -> (Event -> Fay a) -> Element ->  Fay ()
 addEventListener = ffi "(function(evt, func, elem) {elem.addEventListener(evt, func)})(%1, %2, %3)"
 
 publishEvent :: Event -> Fay ()
@@ -283,7 +181,7 @@ publishEvent _ = do
   c <- confirm "Publish Now"
   when c $ post "/api/publish" "" callback
 
-data TreeNode = TreeNode { isDir :: Bool, serverPath :: T.Text, text :: T.Text }
+data TreeNode = TreeNode { isDir :: Bool, serverPath :: Text, text :: Text }
 
 initTree :: Text -> (TreeNode -> Fay ()) -> Fay ()
 initTree = ffi "initTree(%1, %2)"
@@ -303,7 +201,7 @@ loadTree act = get "/api/file" resolve
           t <- responseText xhr
           initTree t act
 
-setOutput :: T.Text -> Fay ()
+setOutput :: Text -> Fay ()
 setOutput = ffi "setOutput(%1)"
 
 data Editor
@@ -332,9 +230,9 @@ removeAllEditorEvent = ffi "(function(evt, editor) { editor.removeAllListeners(e
 resize :: Editor -> Fay Editor
 resize = ffi "(function(editor) {editor.resize(); return editor})(%1)"
 
-readFileAction :: FilePath -> Maybe Text -> Maybe Text -> Fay ()
-readFileAction _ (Just err) Nothing = error $ T.unpack err
-readFileAction fn Nothing (Just body) = do
+readFileAction :: FilePath -> Either Text Text -> Fay ()
+readFileAction _ (Left err) = error $ unpack err
+readFileAction fn (Right body) = do
   getEditor
            >>= removeAllEditorEvent "change"
            >>= setEditorValue body
@@ -359,11 +257,11 @@ treeNodeAction tn = do
   setCurrentDirectory currentDirectory
   unless (isDir tn) $
     if isTextFile currentPath then
-      readFile currentPath (toAction (readFileAction currentPath))
+      readFile currentPath (readFileAction currentPath)
     else if isImageFile currentPath then do
       getEditor
                >>= removeAllEditorEvent "change"
-               >>= setEditorValue (T.concat ["![", text tn, "](", currentPath, ")"])
+               >>= setEditorValue (concat ["![", text tn, "](", currentPath, ")"])
                >>= setEditorMode "test.md"
                >>= setEditorEvent "change" (const $ updatePreview "test.md")
       setTimeout 100 $ const (updatePreview "test.md")
@@ -371,7 +269,7 @@ treeNodeAction tn = do
     else do
       getEditor
                >>= removeAllEditorEvent "change"
-               >>= setEditorValue (T.concat ["[", text tn, "](", currentPath, ")"])
+               >>= setEditorValue (concat ["[", text tn, "](", currentPath, ")"])
                >>= setEditorMode "test.md"
                >>= setEditorEvent "change" (const $ updatePreview "test.md")
       setTimeout 100 $ const (updatePreview "test.md")
@@ -470,10 +368,10 @@ updatePreview fn = do
         content = if isMarkdownFile fn then renderMarkdown $ getContent art
                   else getContent art
         title = getTitle art
-    if T.null title then
+    if null title then
       setOutput content
     else
-      setOutput $ T.concat ["<h1>", title, "</h1>", content]
+      setOutput $ concat ["<h1>", title, "</h1>", content]
   else
     when c disablePreview
 
