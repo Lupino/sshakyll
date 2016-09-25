@@ -9,9 +9,16 @@ author:              Li Meng Jun
 maintainer:          lmjubuntu@gmail.com
 copyright:           MIT
 category:            value
-build-type:          Simple
--- extra-source-files:
+build-type:          Custom
+extra-source-files:  fay/*.hs
 cabal-version:       >=1.10
+data-files:          fay/*.hs
+
+x-fay-packages:      fay-jquery, fay-text, fay-dom
+x-fay-root-modules:  editor
+x-fay-include-paths: fay/src
+x-fay-output-dir:    public
+x-fay-source-dir:    fay
 
 library
   hs-source-dirs:      src
@@ -24,6 +31,13 @@ library
                      , unordered-containers
                      , bytestring
                      , process
+
+                     -- required by fay compiler
+                     , fay
+                     , fay-builder
+                     , fay-text
+                     , fay-dom
+                     , fay-jquery
   default-language:    Haskell2010
 
 executable sshakyll

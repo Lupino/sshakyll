@@ -1,2 +1,2 @@
-import Distribution.Simple
-main = defaultMain
+import Fay.Builder (defaultFayHook)
+main = defaultFayHook
