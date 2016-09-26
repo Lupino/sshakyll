@@ -19,9 +19,9 @@ const pkgdef :Spk.PackageDefinition = (
 
     appTitle = (defaultText = "Hakyll CMS"),
 
-    appVersion = 0,  # Increment this for every release.
+    appVersion = 1,  # Increment this for every release.
 
-    appMarketingVersion = (defaultText = "1.0.0"),
+    appMarketingVersion = (defaultText = "1.1.0"),
     # Human-readable representation of appVersion. Should match the way you
     # identify versions of your app in documentation and marketing.
 
@@ -129,7 +129,7 @@ const pkgdef :Spk.PackageDefinition = (
         #(width = 640, height = 480, png = embed "path/to/screenshot-2.png"),
         (width = 640, height = 480, png = embed "app-graphics/screenshot.png")
       ],
-      #changeLog = (defaultText = embed "path/to/sandstorm-specific/changelog.md"),
+      changeLog = (defaultText = embed "changelog.md"),
       # Documents the history of changes in Github-flavored markdown format (with the same restrictions
       # as govern `description`). We recommend formatting this with an H1 heading for each version
       # followed by a bullet list of changes.
