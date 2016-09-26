@@ -166,35 +166,5 @@ function selectFile(callback) {
   input.click();
 }
 
-function showHowto(text) {
-  var lines = text.split('\n');
-  var info = {
-    // autoUrl: lines[2],
-    // hostname: /https?:\/\/([^\/]+)/i.exec(lines[2])[1],
-    // publicId: lines[0],
-    // isDemoUser: lines[3] === 'true'
-  };
-  var url = document.createElement("a");
-  url.href = info.autoUrl;
-  $("#howto-hostname").text(url.hostname);
-  $("#howto-id").text(info.publicId);
-  $("#howto").addClass("shown");
-  var link = $("#howto-auto-url-link");
-  link.text(info.autoUrl);
-  link.attr("href", info.autoUrl);
-  $("#howto-auto-url").show();
-  if (info.isDemoUser) {
-    $("#howto-demo").show();
-    $("#howto-nondemo").hide();
-  } else {
-    $("#howto-demo").hide();
-    $("#howto-nondemo").show();
-  }
-}
-
-function hideHowto() {
-  $("#howto").removeClass("shown");
-}
-
 var preview = true;
 var canPreview = false;

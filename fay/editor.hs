@@ -95,7 +95,7 @@ saveCurrent = do
   currentPath <- getCurrentPath
   saveState <- getSaveState
 
-  when (Prelude.not (null currentPath) && isUnsave saveState && isTextFile currentPath) $ do
+  when (not (null currentPath) && isUnsave saveState && isTextFile currentPath) $ do
     saving
     editor <- getEditor
     dat <- getEditorValue editor
@@ -258,26 +258,22 @@ treeNodeAction tn = do
   unless (isDir tn) $
     if isTextFile currentPath then
       readFile currentPath (readFileAction currentPath)
-    else if isImageFile currentPath then do
-      getEditor
-               >>= removeAllEditorEvent "change"
-               >>= setEditorValue (concat ["![", text tn, "](", currentPath, ")"])
-               >>= setEditorMode "test.md"
-               >>= setEditorEvent "change" (const $ updatePreview "test.md")
-      setTimeout 100 $ const (updatePreview "test.md")
-      return ()
-    else do
-      getEditor
-               >>= removeAllEditorEvent "change"
-               >>= setEditorValue (concat ["[", text tn, "](", currentPath, ")"])
-               >>= setEditorMode "test.md"
-               >>= setEditorEvent "change" (const $ updatePreview "test.md")
-      setTimeout 100 $ const (updatePreview "test.md")
-      return ()
+    else setCustomEditorValue (text tn) currentPath
 
   where currentPath = serverPath tn
         currentDirectory = if isDir tn then currentPath
                            else dropFileName currentPath
+
+        setCustomEditorValue :: Text -> FilePath -> Fay ()
+        setCustomEditorValue fn path = do
+          getEditor
+                   >>= removeAllEditorEvent "change"
+                   >>= setEditorValue (concat [i, "[", fn, "](", path, ")"])
+                   >>= setEditorMode "test.md"
+                   >>= setEditorEvent "change" (const $ updatePreview "test.md")
+          setTimeout 100 $ const (updatePreview "test.md")
+          return ()
+          where i = if isImageFile path then "!" else ""
 
 selectFile :: (Text -> Text -> Fay ()) -> Fay ()
 selectFile = ffi "selectFile(%1)"
@@ -290,8 +286,28 @@ uploadFile isArc _ = selectFile action
           put (uri </> currentDirectory </> name) dat (const updateTree)
         uri = if isArc then "/api/archive" else "/api/file"
 
+getHostName :: Text -> Text
+getHostName = ffi "(function (t) { var m = /https?:\\/\\/([^\\/]+)/i.exec(t); if (m) {return m[1];} else {return '';}})(%1)"
+
 showHowto :: Text -> Fay ()
-showHowto = ffi "showHowto(%1)"
+showHowto txt = do
+  getElementById "howto-hostname" >>= setHtml (getHostName autoUrl)
+  getElementById "howto-id" >>= setHtml publicId
+  getElementById "howto" >>= flip addClass "shown"
+  getElementById "howto-auto-url-link" >>= setHtml autoUrl >>= setProp "href" autoUrl
+  getElementById "howto-auto-url" >>= setDisplay "block"
+  if isDemoUser == "true" then do
+    getElementById "howto-demo" >>= setDisplay "block"
+    getElementById "howto-nondemo" >>= setDisplay "none"
+    return ()
+  else do
+    getElementById "howto-demo" >>= setDisplay "none"
+    getElementById "howto-nondemo" >>= setDisplay "block"
+    return ()
+  where lns = splitOn '\n' txt
+        publicId = head lns
+        autoUrl = last $ take 3 lns
+        isDemoUser = last $ take 4 lns
 
 loadPublicIdAndShow :: Fay ()
 loadPublicIdAndShow = get "/api/publicId" action
@@ -299,7 +315,7 @@ loadPublicIdAndShow = get "/api/publicId" action
         action xhr = responseText xhr >>= showHowto
 
 hideHowto :: Fay ()
-hideHowto = ffi "hideHowto()"
+hideHowto = getElementById "howto" >>= flip removeClass "shown"
 
 setCanPreview :: Bool -> Fay ()
 setCanPreview = ffi "(function(can) { window.canPreview = can; })(%1)"
