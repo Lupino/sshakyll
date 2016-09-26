@@ -16,7 +16,7 @@ data-files:          fay/*.hs
 
 x-fay-packages:      fay-dom
 x-fay-root-modules:  editor
-x-fay-include-paths: fay/src
+x-fay-include-paths: fay
 x-fay-output-dir:    public
 x-fay-source-dir:    fay
 
