@@ -1,5 +1,7 @@
 # Hakyll CMS
 
+[View on Sandstorm App Market &raquo;](https://apps.sandstorm.io/app/z7za0nz4mwykzcz7zgpttmhyt5kzkgpqq2xhtg6vucg0pp3tmhsh) | [Try it now &raquo;](https://demo.sandstorm.io/appdemo/z7za0nz4mwykzcz7zgpttmhyt5kzkgpqq2xhtg6vucg0pp3tmhsh)
+
 This is a [Sandstorm](https://sandstorm.io) app created by haskell.
 It is primarily a mash-up of three things:
 
@@ -12,6 +14,8 @@ your site's input files, see a live preview, and "publish" the site e.g. to
 your domain name.
 
 ![Screen shot.](app-graphics/screenshot.png "Screenshot")
+
+This app is available on the [Sandstorm App List](http://sandstorm.io/apps).
 
 ## Warning
 
