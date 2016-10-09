@@ -4,12 +4,13 @@ module Main where
 import SSHakyll
 import Network (PortID(PortNumber))
 import Web.Scotty (get, post, delete, put, raw, settings, request, json, regex, header,
-                   ActionM, redirect, setHeader, scottyOpts, body, middleware)
+                   ActionM, redirect, setHeader, scottyOpts, body, middleware, text, status)
 import Network.Wai (Request(..))
 import Network.Wai.Handler.Warp (setPort, setHost)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import Data.Streaming.Network.Internal (HostPreference(Host))
 import Network.Wai.Middleware.Static (staticPolicy, noDots, (>->), addBase)
+import Network.HTTP.Types (status404)
 import Data.Default.Class (def)
 import Control.Monad.IO.Class (liftIO)
 import System.FilePath ((</>), dropDrive, dropFileName)
@@ -75,8 +76,13 @@ program opts =
       path <- filePath root
       let headers = [("Content-Type", getMimeType path)]
       setHeader "Content-Type" $ TL.pack $ BC.unpack $ getMimeType path
-      fc <- liftIO $ BL.readFile path
-      raw fc
+      fileExists <- liftIO $ doesFileExist path
+      if fileExists then do
+        fc <- liftIO $ BL.readFile path
+        raw fc
+      else do
+        status status404
+        text ""
 
     put (regex "^/api/file/(.*)") $ do
       path <- filePath root
