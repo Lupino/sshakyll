@@ -3,8 +3,9 @@ module Main where
 
 import SSHakyll
 import Network (PortID(PortNumber))
-import Web.Scotty (get, post, delete, put, raw, settings, request, json, regex, header,
-                   ActionM, redirect, setHeader, scottyOpts, body, middleware, text, status)
+import Web.Scotty (get, post, delete, put, raw, settings, param, json, header,
+                   ActionM, redirect, setHeader, scottyOpts, body, middleware,
+                   status, text, RoutePattern, function)
 import Network.Wai (Request(..))
 import Network.Wai.Handler.Warp (setPort, setHost)
 import Network.Wai.Middleware.RequestLogger (logStdout)
@@ -14,7 +15,8 @@ import Network.HTTP.Types (status404)
 import Data.Default.Class (def)
 import Control.Monad.IO.Class (liftIO)
 import System.FilePath ((</>), dropDrive, dropFileName)
-import qualified Data.Text as T (pack, unpack)
+import Data.List (isPrefixOf)
+import qualified Data.Text as T (Text, pack, unpack)
 import qualified Data.Text.Lazy as TL (pack, unpack)
 import qualified Data.ByteString.Char8 as BC (unpack)
 import qualified Data.ByteString.Lazy.Char8 as BL (readFile)
@@ -72,7 +74,7 @@ program opts =
       trees <- liftIO $ getFileTreeList $ root </> "source"
       json $ treeListToJSON trees
 
-    get (regex "^/api/file/(.*)") $ do
+    get (textRoute [ "api", "file" ]) $ do
       path <- filePath root
       let headers = [("Content-Type", getMimeType path)]
       setHeader "Content-Type" $ TL.pack $ BC.unpack $ getMimeType path
@@ -84,21 +86,21 @@ program opts =
         status status404
         text ""
 
-    put (regex "^/api/file/(.*)") $ do
+    put (textRoute [ "api", "file" ]) $ do
       path <- filePath root
       wb <- body
       liftIO $ saveFile path wb
 
       json $ object [ "result" .= T.pack "OK" ]
 
-    put (regex "^/api/archive/(.*)") $ do
+    put (textRoute [ "api", "archive" ]) $ do
       path <- filePath root
       wb <- body
       liftIO $ extractFilesFromArchive [OptDestination (dropFileName path)] $ toArchive wb
 
       json $ object [ "result" .= T.pack "OK" ]
 
-    delete (regex "^/api/file/(.*)") $ do
+    delete (textRoute [ "api", "file" ]) $ do
       path <- filePath root
       liftIO $ deleteFile path
       json $ object [ "result" .= T.pack "OK" ]
@@ -123,9 +125,14 @@ program opts =
 
 filePath :: FilePath -> ActionM FilePath
 filePath root = do
-  req <- request
-  let path = foldr ((</>) . T.unpack) "" (drop 2 $ pathInfo req)
+  path <- param "path"
   return $ root </> "source" </> path
+
+textRoute :: [T.Text] -> RoutePattern
+textRoute strs = function $ \req ->
+  if isPrefixOf strs (pathInfo req) then
+    Just [("path", TL.pack $ foldr ((</>) . T.unpack) "" (drop 2 $ pathInfo req))]
+  else Nothing
 
 
 -- | Guess MIME type from file extension
