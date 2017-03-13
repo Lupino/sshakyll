@@ -26,8 +26,9 @@ import Data.Maybe (fromJust)
 import Codec.Archive.Zip (toArchive, ZipOption (..), extractFilesFromArchive)
 import System.Directory (doesFileExist)
 
+import Data.Semigroup ((<>))
 import Options.Applicative (Parser(..), execParser, strOption, option, auto,
-                            long, short, help, value, (<*>), (<>), helper,
+                            long, short, help, value, (<*>), helper,
                             fullDesc, info, progDesc, metavar)
 
 data Options = Options { getHost :: String,
