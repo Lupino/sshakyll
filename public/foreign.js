@@ -81,7 +81,7 @@ function initEditor() {
 
   $("#in").removeClass("uninitialized");
   editor = ace.edit("in");
-  editor.setTheme("ace/theme/chrome");
+  editor.setTheme("ace/theme/chome");
   editorInitialized = true;
   return editor;
 }
