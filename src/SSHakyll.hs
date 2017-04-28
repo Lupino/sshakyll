@@ -9,20 +9,28 @@ module SSHakyll
     getPublicId
   ) where
 
-import Control.Monad (forM, when, unless)
-import System.Directory (doesDirectoryExist, getDirectoryContents,
-                         createDirectoryIfMissing, doesFileExist,
-                         removeFile, removeDirectoryRecursive)
-import System.FilePath ((</>), dropFileName)
-import Data.Maybe (fromMaybe)
+import           Control.Monad                  (forM, unless, when)
+import           Data.Maybe                     (fromMaybe)
+import           System.Directory               (createDirectoryIfMissing,
+                                                 doesDirectoryExist,
+                                                 doesFileExist,
+                                                 getDirectoryContents,
+                                                 removeDirectoryRecursive,
+                                                 removeFile)
+import           System.FilePath                (dropFileName, (</>))
 
-import System.IO (withFile, IOMode( ReadMode ), hFileSize)
+import           System.IO                      (IOMode (ReadMode), hFileSize,
+                                                 withFile)
 
-import Data.Aeson (ToJSON(..), object, (.=), Value(..), encode)
-import Data.HashMap.Strict (union)
-import qualified Data.ByteString.Lazy as LB (ByteString, writeFile, hGetContents)
-import qualified Data.Text as T (pack)
-import System.Process (createProcess, StdStream(..), proc, std_out)
+import           Data.Aeson                     (ToJSON (..), Value (..),
+                                                 encode, object, (.=))
+import qualified Data.ByteString.Lazy           as LB (ByteString, empty,
+                                                       writeFile)
+import           Data.HashMap.Strict            (union)
+import qualified Data.Text                      as T (pack)
+import           System.Process                 (callProcess)
+import           System.Process.ByteString.Lazy (readProcessWithExitCode)
+
 
 data FileTree = Directory String [FileTree] | FileName String Int
   deriving (Show)
@@ -33,9 +41,9 @@ instance ToJSON FileTree where
 
 unionValue :: Value -> Value -> Value
 unionValue (Object a) (Object b) = Object $ union a b
-unionValue (Object a) _ = Object a
-unionValue _ (Object b) = Object b
-unionValue _ _ = Null
+unionValue (Object a) _          = Object a
+unionValue _ (Object b)          = Object b
+unionValue _ _                   = Null
 
 treeListToJSON :: [FileTree] -> Value
 treeListToJSON = foldr (unionValue . toJSON) Null
@@ -76,12 +84,10 @@ deleteFile fn = do
   fileExists <- doesFileExist fn
   when fileExists $ removeFile fn
 
-publish :: IO LB.ByteString
-publish = do
-  (_,Just hout,_,_) <- createProcess (proc "site" ["rebuild"]){ std_out = CreatePipe }
-  LB.hGetContents hout
+publish :: IO ()
+publish = callProcess "site" ["rebuild"]
 
 getPublicId :: String -> IO LB.ByteString
 getPublicId sessionId = do
-  (_,Just hout,_,_) <- createProcess (proc "getPublicId" [sessionId]){ std_out = CreatePipe }
-  LB.hGetContents hout
+  (_, out, _) <- readProcessWithExitCode "getPublicId" [sessionId] LB.empty
+  return out

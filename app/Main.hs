@@ -1,35 +1,47 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import SSHakyll
-import Network (PortID(PortNumber))
-import Web.Scotty (get, post, delete, put, raw, settings, param, json, header,
-                   ActionM, redirect, setHeader, scottyOpts, body, middleware,
-                   status, text, RoutePattern, function)
-import Network.Wai (Request(..))
-import Network.Wai.Handler.Warp (setPort, setHost)
-import Network.Wai.Middleware.RequestLogger (logStdout)
-import Data.Streaming.Network.Internal (HostPreference(Host))
-import Network.Wai.Middleware.Static (staticPolicy, noDots, (>->), addBase)
-import Network.HTTP.Types (status404)
-import Data.Default.Class (def)
-import Control.Monad.IO.Class (liftIO)
-import System.FilePath ((</>), dropDrive, dropFileName)
-import Data.List (isPrefixOf)
-import qualified Data.Text as T (Text, pack, unpack)
-import qualified Data.Text.Lazy as TL (pack, unpack)
-import qualified Data.ByteString.Char8 as BC (unpack)
-import qualified Data.ByteString.Lazy.Char8 as BL (readFile)
-import Data.Aeson (object, (.=))
-import Network.Mime (MimeType, defaultMimeLookup)
-import Data.Maybe (fromJust)
-import Codec.Archive.Zip (toArchive, ZipOption (..), extractFilesFromArchive)
-import System.Directory (doesFileExist)
+import           Codec.Archive.Zip                    (ZipOption (..),
+                                                       extractFilesFromArchive,
+                                                       toArchive)
+import           Control.Monad.IO.Class               (liftIO)
+import           Data.Aeson                           (object, (.=))
+import qualified Data.ByteString.Char8                as BC (unpack)
+import qualified Data.ByteString.Lazy.Char8           as BL (empty, readFile)
+import           Data.Default.Class                   (def)
+import           Data.List                            (isPrefixOf)
+import           Data.Maybe                           (fromJust)
+import           Data.Streaming.Network.Internal      (HostPreference (Host))
+import qualified Data.Text                            as T (Text, pack, unpack)
+import qualified Data.Text.Lazy                       as TL (pack, unpack)
+import           Network                              (PortID (PortNumber))
+import           Network.HTTP.Types                   (status204, status404)
+import           Network.Mime                         (MimeType,
+                                                       defaultMimeLookup)
+import           Network.Wai                          (Request (..))
+import           Network.Wai.Handler.Warp             (setHost, setPort)
+import           Network.Wai.Middleware.RequestLogger (logStdout)
+import           Network.Wai.Middleware.Static        (addBase, noDots,
+                                                       staticPolicy, (>->))
+import           SSHakyll
+import           System.Directory                     (doesFileExist)
+import           System.FilePath                      (dropDrive, dropFileName,
+                                                       (</>))
+import           Web.Scotty                           (ActionM, RoutePattern,
+                                                       body, delete, function,
+                                                       get, header, json,
+                                                       middleware, param, post,
+                                                       put, raw, redirect,
+                                                       scottyOpts, setHeader,
+                                                       settings, status)
 
-import Data.Semigroup ((<>))
-import Options.Applicative (Parser(..), execParser, strOption, option, auto,
-                            long, short, help, value, (<*>), helper,
-                            fullDesc, info, progDesc, metavar)
+import           Data.Semigroup                       ((<>))
+import           Options.Applicative                  (Parser (..), auto,
+                                                       execParser, fullDesc,
+                                                       help, helper, info, long,
+                                                       metavar, option,
+                                                       progDesc, short,
+                                                       strOption, value, (<*>))
 
 data Options = Options { getHost :: String,
                          getPort :: Int,
@@ -85,7 +97,7 @@ program opts =
         raw fc
       else do
         status status404
-        text ""
+        raw BL.empty
 
     put (textRoute [ "api", "file" ]) $ do
       path <- filePath root
@@ -107,8 +119,9 @@ program opts =
       json $ object [ "result" .= T.pack "OK" ]
 
     post "/api/publish" $ do
-      fc <- liftIO publish
-      raw fc
+      liftIO publish
+      status status204
+      raw BL.empty
 
     get "/api/publicId" $ do
       sessionId <- TL.unpack . fromJust <$> header "X-Sandstorm-Session-Id"
